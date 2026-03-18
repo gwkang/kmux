@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "KMux": {
+      "commandName": "Project",
+      "nativeDebugging": false
+    }
+  }
+}

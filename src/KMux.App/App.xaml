@@ -1,0 +1,30 @@
+<Application x:Class="KMux.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Application.Resources>
+    <ResourceDictionary>
+      <!-- Global font -->
+      <Style TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, sans-serif"/>
+      </Style>
+      <Style TargetType="Button">
+        <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, sans-serif"/>
+      </Style>
+
+      <!-- Theme brushes — values are overwritten at runtime by AppSettingsService -->
+      <!-- Default: Catppuccin Mocha -->
+      <SolidColorBrush x:Key="KmuxBrushBase"     Color="#1e1e2e"/>
+      <SolidColorBrush x:Key="KmuxBrushMantle"   Color="#181825"/>
+      <SolidColorBrush x:Key="KmuxBrushCrust"    Color="#11111b"/>
+      <SolidColorBrush x:Key="KmuxBrushSurface0" Color="#313244"/>
+      <SolidColorBrush x:Key="KmuxBrushSurface1" Color="#45475a"/>
+      <SolidColorBrush x:Key="KmuxBrushOverlay0" Color="#6c7086"/>
+      <SolidColorBrush x:Key="KmuxBrushSubtext0" Color="#585b70"/>
+      <SolidColorBrush x:Key="KmuxBrushSubtext1" Color="#a6adc8"/>
+      <SolidColorBrush x:Key="KmuxBrushText"     Color="#cdd6f4"/>
+      <SolidColorBrush x:Key="KmuxBrushAccent"   Color="#89b4fa"/>
+      <SolidColorBrush x:Key="KmuxBrushGreen"    Color="#a6e3a1"/>
+      <SolidColorBrush x:Key="KmuxBrushRed"      Color="#f38ba8"/>
+    </ResourceDictionary>
+  </Application.Resources>
+</Application>

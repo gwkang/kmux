@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KMux Terminal</title>
+  <link rel="stylesheet" href="xterm/xterm.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #1e1e2e;
+      overflow: hidden;
+    }
+    #terminal {
+      width: 100%; height: 100%;
+    }
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--scrollbar-track, #1e1e2e); }
+    ::-webkit-scrollbar-thumb { background: #45475a; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #585b70; }
+  </style>
+</head>
+<body>
+  <div id="terminal"></div>
+
+  <script src="xterm/xterm.js"></script>
+  <script src="xterm/xterm-addon-fit.js"></script>
+  <script src="xterm/xterm-addon-search.js"></script>
+  <script src="xterm/xterm-addon-web-links.js"></script>
+
+  <script>
+    // ── Terminal setup ────────────────────────────────────────────────────────
+    const term = new Terminal({
+      cursorBlink:    true,
+      cursorStyle:    'bar',
+      fontSize:       14,
+      fontFamily:     "'Cascadia Code', 'Cascadia Mono', Consolas, 'Courier New', monospace",
+      lineHeight:     1.2,
+      letterSpacing:  0,
+      scrollback:     10000,
+      allowProposedApi: true,
+      theme: {
+        background:   '#1e1e2e',
+        foreground:   '#cdd6f4',
+        cursor:       '#f5e0dc',
+        cursorAccent: '#1e1e2e',
+        black:        '#45475a',
+        red:          '#f38ba8',
+        green:        '#a6e3a1',
+        yellow:       '#f9e2af',
+        blue:         '#89b4fa',
+        magenta:      '#f5c2e7',
+        cyan:         '#94e2d5',
+        white:        '#bac2de',
+        brightBlack:  '#585b70',
+        brightRed:    '#f38ba8',
+        brightGreen:  '#a6e3a1',
+        brightYellow: '#f9e2af',
+        brightBlue:   '#89b4fa',
+        brightMagenta:'#f5c2e7',
+        brightCyan:   '#94e2d5',
+        brightWhite:  '#a6adc8',
+        selectionBackground: '#45475a',
+      }
+    });
+
+    const fitAddon      = new FitAddon.FitAddon();
+    const searchAddon   = new SearchAddon.SearchAddon();
+    const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+
+    term.loadAddon(fitAddon);
+    term.loadAddon(searchAddon);
+    term.loadAddon(webLinksAddon);
+
+    term.open(document.getElementById('terminal'));
+    fitAddon.fit();
+
+    window.term = term;
+
+    // ── KMux prefix interception ─────────────────────────────────────────────
+    // Intercepts Ctrl+B (prefix) and the subsequent chord so that KMux keybindings
+    // work even when xterm.js (WebView2) holds Win32 keyboard focus.
+    let _kmuxPrefixPending = false;
+    term.attachCustomKeyEventHandler(ev => {
+      if (ev.type !== 'keydown') return true;
+
+      // Detect prefix key: Ctrl+B
+      if (ev.ctrlKey && !ev.shiftKey && !ev.altKey && ev.code === 'KeyB') {
+        _kmuxPrefixPending = true;
+        window.chrome.webview.postMessage({ type: 'kmux_prefix' });
+        ev.preventDefault();
+        return false;
+      }
+
+      // Second chord after prefix
+      if (_kmuxPrefixPending) {
+        _kmuxPrefixPending = false;
+        window.chrome.webview.postMessage({
+          type: 'kmux_chord', code: ev.code,
+          ctrl: ev.ctrlKey, shift: ev.shiftKey, alt: ev.altKey
+        });
+        ev.preventDefault();
+        return false;
+      }
+
+      return true;
+    });
+
+    // ── Input → C# ──────────────────────────────────────────────────────────
+    term.onData(data => {
+      window.chrome.webview.postMessage({ type: 'input', data: data });
+    });
+
+    // ── Resize → C# ─────────────────────────────────────────────────────────
+    term.onResize(({ cols, rows }) => {
+      window.chrome.webview.postMessage({ type: 'resize', cols: cols, rows: rows });
+    });
+
+    // ── Title change → C# ───────────────────────────────────────────────────
+    term.onTitleChange(title => {
+      window.chrome.webview.postMessage({ type: 'title', data: title });
+    });
+
+    // ── C# → terminal: write VT data ────────────────────────────────────────
+    window.chrome.webview.addEventListener('message', event => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'write') {
+          term.write(msg.data);
+        } else if (msg.type === 'resize') {
+          term.resize(msg.cols, msg.rows);
+          fitAddon.fit();
+        } else if (msg.type === 'clear') {
+          term.clear();
+        } else if (msg.type === 'search') {
+          searchAddon.findNext(msg.query, { caseSensitive: msg.caseSensitive ?? false });
+        } else if (msg.type === 'scrollback') {
+          // Return scrollback buffer content for copy-to-pane feature
+          const lines = [];
+          for (let i = 0; i < term.buffer.active.length; i++) {
+            lines.push(term.buffer.active.getLine(i)?.translateToString() ?? '');
+          }
+          window.chrome.webview.postMessage({ type: 'scrollback', data: lines.join('\n') });
+        } else if (msg.type === 'settings') {
+          if (msg.fontFamily) term.options.fontFamily = msg.fontFamily;
+          if (msg.fontSize)   term.options.fontSize   = msg.fontSize;
+          if (msg.theme) {
+            term.options.theme = msg.theme;
+            document.body.style.background = msg.theme.background ?? document.body.style.background;
+            document.documentElement.style.background = msg.theme.background ?? '';
+            const scrollTrack = msg.theme.background ?? '#1e1e2e';
+            document.documentElement.style.setProperty('--scrollbar-track', scrollTrack);
+          }
+          fitAddon.fit();
+        }
+      } catch (e) { console.error('KMux bridge error:', e); }
+    });
+
+    // ── Auto-fit on window resize ────────────────────────────────────────────
+    const resizeObserver = new ResizeObserver(() => {
+      try { fitAddon.fit(); } catch (e) {}
+    });
+    resizeObserver.observe(document.getElementById('terminal'));
+
+    // ── Focus ────────────────────────────────────────────────────────────────
+    term.focus();
+    window.termFocus  = () => term.focus();
+    window.termSearch = (q, opts) => searchAddon.findNext(q, opts);
+    window.termClear  = () => term.clear();
+
+    // Signal C# that xterm.js is ready to receive output
+    window.chrome.webview.postMessage({ type: 'ready' });
+  </script>
+</body>
+</html>
