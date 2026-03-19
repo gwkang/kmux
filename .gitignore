@@ -55,3 +55,4 @@ nunit-*.xml
 /.vs/KMux/CopilotIndices
 /.vs
 .claude/settings.local.json
+build_log.txt
