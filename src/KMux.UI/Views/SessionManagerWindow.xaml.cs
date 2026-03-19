@@ -1,6 +1,7 @@
 using System.Windows;
 using KMux.Core.Models;
 using KMux.Session;
+using KMux.UI.Infrastructure;
 
 namespace KMux.UI.Views;
 
@@ -12,6 +13,7 @@ public partial class SessionManagerWindow : Window
     {
         InitializeComponent();
         Loaded += async (_, _) => await RefreshAsync();
+        ContentRendered += (_, _) => WindowAnimations.PlayEntry(RootContent, EntryScale);
     }
 
     private async Task RefreshAsync()

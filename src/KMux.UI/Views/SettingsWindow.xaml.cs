@@ -33,6 +33,7 @@ public partial class SettingsWindow : Window
             Red:        ThemeHelper.HexBrush(kv.Value.Red)
         )).ToList();
         Loaded += OnLoaded;
+        ContentRendered += (_, _) => WindowAnimations.PlayEntry(RootContent, EntryScale);
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)

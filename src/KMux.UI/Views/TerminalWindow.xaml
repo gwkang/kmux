@@ -10,37 +10,95 @@
         PreviewKeyDown="Window_PreviewKeyDown">
 
   <Window.Resources>
-    <!-- Tab item style -->
+    <!-- Toolbar icon style (Segoe MDL2 Assets glyphs) — inherits Foreground from parent button -->
+    <Style x:Key="MdlIcon" TargetType="TextBlock">
+      <Setter Property="FontFamily"        Value="Segoe MDL2 Assets"/>
+      <Setter Property="FontSize"          Value="13"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="IsHitTestVisible"  Value="False"/>
+    </Style>
+
+    <!-- Base tab/toolbar button style -->
     <Style x:Key="TabItemStyle" TargetType="Button">
-      <Setter Property="Background"   Value="Transparent" />
-      <Setter Property="Foreground"   Value="{DynamicResource KmuxBrushSubtext1}" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="Padding"      Value="12,6" />
-      <Setter Property="FontSize"     Value="13" />
-      <Setter Property="FontFamily"   Value="Segoe UI Variable Text, Segoe UI" />
-      <Setter Property="Cursor"       Value="Hand" />
+      <Setter Property="Background"      Value="Transparent"/>
+      <Setter Property="Foreground"      Value="{DynamicResource KmuxBrushSubtext1}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding"         Value="10,6"/>
+      <Setter Property="FontSize"        Value="13"/>
+      <Setter Property="FontFamily"      Value="Segoe UI Variable Text, Segoe UI"/>
+      <Setter Property="Cursor"          Value="Hand"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
             <Border x:Name="Bd"
                     Background="{TemplateBinding Background}"
-                    Padding="{TemplateBinding Padding}">
-              <ContentPresenter />
+                    Padding="{TemplateBinding Padding}"
+                    CornerRadius="3">
+              <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource KmuxBrushSurface0}" />
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource KmuxBrushSurface0}"/>
+                <Setter Property="Foreground" Value="{DynamicResource KmuxBrushText}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource KmuxBrushSurface1}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
     </Style>
+
+    <!-- Close (✕) button inside tab -->
+    <Style x:Key="TabCloseStyle" TargetType="Button">
+      <Setter Property="Background"      Value="Transparent"/>
+      <Setter Property="Foreground"      Value="{DynamicResource KmuxBrushOverlay0}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding"         Value="3,1"/>
+      <Setter Property="FontSize"        Value="11"/>
+      <Setter Property="Cursor"          Value="Hand"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="HorizontalAlignment" Value="Right"/>
+      <Setter Property="Margin"          Value="0,0,3,0"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    Padding="{TemplateBinding Padding}"
+                    CornerRadius="3">
+              <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource KmuxBrushSurface1}"/>
+                <Setter Property="Foreground" Value="{DynamicResource KmuxBrushText}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource KmuxBrushSurface0}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Vertical separator for toolbar -->
+    <Style x:Key="ToolbarSep" TargetType="Rectangle">
+      <Setter Property="Width"             Value="1"/>
+      <Setter Property="Height"            Value="16"/>
+      <Setter Property="Fill"              Value="{DynamicResource KmuxBrushSurface1}"/>
+      <Setter Property="Margin"            Value="4,0"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
   </Window.Resources>
 
   <Grid>
     <Grid.RowDefinitions>
-      <RowDefinition Height="38" />   <!-- Title bar / Tab bar -->
+      <RowDefinition Height="38" />   <!-- Tab bar -->
       <RowDefinition Height="*"  />   <!-- Terminal area -->
       <RowDefinition Height="22" />   <!-- Status bar -->
     </Grid.RowDefinitions>
@@ -54,17 +112,21 @@
       </Grid.ColumnDefinitions>
 
       <!-- App icon/name -->
-      <TextBlock Grid.Column="0"
-                 Text="⬡ KMux"
-                 Foreground="{DynamicResource KmuxBrushAccent}"
-                 FontWeight="Bold"
-                 FontSize="13"
-                 VerticalAlignment="Center"
-                 Margin="12,0" />
+      <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="12,0,8,0" VerticalAlignment="Center">
+        <Viewbox Width="14" Height="14" Margin="0,0,6,0">
+          <Canvas Width="16" Height="16">
+            <Path Fill="{DynamicResource KmuxBrushAccent}" IsHitTestVisible="False"
+                  Data="M8,1 L14.7,4.8 L14.7,11.2 L8,15 L1.3,11.2 L1.3,4.8 Z"/>
+          </Canvas>
+        </Viewbox>
+        <TextBlock Text="KMux"
+                   Foreground="{DynamicResource KmuxBrushAccent}"
+                   FontWeight="Bold" FontSize="13" VerticalAlignment="Center"/>
+      </StackPanel>
 
-      <!-- Tabs -->
+      <!-- Tabs — hidden scrollbar, mouse-wheel scrollable -->
       <ScrollViewer Grid.Column="1"
-                    HorizontalScrollBarVisibility="Auto"
+                    HorizontalScrollBarVisibility="Hidden"
                     VerticalScrollBarVisibility="Disabled">
         <ItemsControl x:Name="TabItemsControl"
                       ItemsSource="{Binding Tabs}">
@@ -75,13 +137,39 @@
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate>
+              <!-- Grid: tab button + close button as siblings (no nesting) -->
               <Grid>
+                <!-- Tab select button — full area, right padding reserves space for ✕ -->
                 <Button Style="{StaticResource TabItemStyle}"
                         Click="TabButton_Click"
                         Tag="{Binding}"
-                        ToolTip="{Binding ToolTipText}">
+                        ToolTip="{Binding ToolTipText}"
+                        Padding="10,6,20,6">
+                  <Button.Background>
+                    <SolidColorBrush Color="Transparent"/>
+                  </Button.Background>
+                  <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                      <Border x:Name="Bd"
+                              Background="{TemplateBinding Background}"
+                              Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center"/>
+                      </Border>
+                      <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                          <Setter TargetName="Bd" Property="Background" Value="{DynamicResource KmuxBrushSurface0}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                          <Setter TargetName="Bd" Property="Background" Value="{DynamicResource KmuxBrushSurface1}"/>
+                        </Trigger>
+                        <DataTrigger Binding="{Binding IsActive}" Value="True">
+                          <Setter TargetName="Bd" Property="Background" Value="{DynamicResource KmuxBrushSurface0}"/>
+                        </DataTrigger>
+                      </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                  </Button.Template>
                   <StackPanel Orientation="Horizontal">
-                    <!-- Tab selected indicator dot (accent color) -->
+                    <!-- Active indicator dot (accent) -->
                     <Ellipse Width="6" Height="6" Margin="0,0,2,0">
                       <Ellipse.Style>
                         <Style TargetType="Ellipse">
@@ -94,10 +182,11 @@
                         </Style>
                       </Ellipse.Style>
                     </Ellipse>
-                    <!-- Claude busy indicator dot (green, pulsing) -->
-                    <Ellipse Width="6" Height="6" Margin="0,0,4,0" Opacity="0">
-                      <Ellipse.Style>
-                        <Style TargetType="Ellipse">
+                    <!-- Claude busy indicator: square shape (distinct from circle = different meaning), pulsing -->
+                    <Rectangle Width="6" Height="6" Margin="0,0,5,0" Opacity="0"
+                               RadiusX="1" RadiusY="1">
+                      <Rectangle.Style>
+                        <Style TargetType="Rectangle">
                           <Setter Property="Fill" Value="{DynamicResource KmuxBrushGreen}"/>
                           <Style.Triggers>
                             <DataTrigger Binding="{Binding IsBusy}" Value="True">
@@ -127,8 +216,9 @@
                             </DataTrigger>
                           </Style.Triggers>
                         </Style>
-                      </Ellipse.Style>
-                    </Ellipse>
+                      </Rectangle.Style>
+                    </Rectangle>
+                    <!-- Tab title -->
                     <TextBlock Text="{Binding Title}">
                       <TextBlock.Style>
                         <Style TargetType="TextBlock">
@@ -141,18 +231,24 @@
                         </Style>
                       </TextBlock.Style>
                     </TextBlock>
-                    <Button Background="Transparent"
-                            Foreground="{DynamicResource KmuxBrushOverlay0}"
-                            BorderThickness="0"
-                            FontSize="11"
-                            Padding="2,0"
-                            Content="✕"
-                            Click="CloseTabButton_Click"
-                            Tag="{Binding}"
-                            Cursor="Hand" />
                   </StackPanel>
                 </Button>
-                <!-- Active indicator bar -->
+
+                <!-- Close button — sibling to tab button, overlaid on right -->
+                <Button Style="{StaticResource TabCloseStyle}"
+                        Click="CloseTabButton_Click"
+                        Tag="{Binding}">
+                  <Viewbox Width="9" Height="9">
+                    <Canvas Width="12" Height="12">
+                      <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                            StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                            IsHitTestVisible="False"
+                            Data="M2,2 L10,10 M10,2 L2,10"/>
+                    </Canvas>
+                  </Viewbox>
+                </Button>
+
+                <!-- Active indicator bar at bottom -->
                 <Rectangle Height="2"
                            VerticalAlignment="Bottom"
                            HorizontalAlignment="Stretch"
@@ -174,17 +270,22 @@
         </ItemsControl>
       </ScrollViewer>
 
-      <!-- Action buttons -->
-      <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-        <!-- New tab (right-click → recent folders) -->
+      <!-- ── Toolbar action buttons ─────────────────────────────────────── -->
+      <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0">
+
+        <!-- Group 1: New tab -->
         <Button Style="{StaticResource TabItemStyle}"
-                Content="+" FontSize="18" FontWeight="Light"
                 ToolTip="New tab (Ctrl+Shift+T) · Right-click for recent folders"
                 Click="NewTabButton_Click"
-                ContextMenuOpening="NewTab_ContextMenuOpening">
+                ContextMenuOpening="NewTab_ContextMenuOpening"
+                Padding="8,6">
           <Button.ContextMenu><ContextMenu /></Button.ContextMenu>
+          <TextBlock Style="{StaticResource MdlIcon}" Text="&#xE710;" FontSize="15" FontFamily="Segoe MDL2 Assets"/>
         </Button>
-        <!-- Split H: two panes stacked with horizontal divider -->
+
+        <Rectangle Style="{StaticResource ToolbarSep}"/>
+
+        <!-- Group 2: Layout -->
         <Button Style="{StaticResource TabItemStyle}"
                 ToolTip="Split horizontal (Ctrl+B -)"
                 Click="SplitHButton_Click">
@@ -194,7 +295,6 @@
             <Rectangle Canvas.Left="0" Canvas.Top="6"  Width="16" Height="2"  Fill="{DynamicResource KmuxBrushAccent}" />
           </Canvas>
         </Button>
-        <!-- Split V: two panes side by side with vertical divider -->
         <Button Style="{StaticResource TabItemStyle}"
                 ToolTip="Split vertical (Ctrl+B \)"
                 Click="SplitVButton_Click">
@@ -204,40 +304,51 @@
             <Rectangle Canvas.Left="6"  Canvas.Top="0" Width="2"  Height="14" Fill="{DynamicResource KmuxBrushAccent}" />
           </Canvas>
         </Button>
-        <!-- Macro record -->
+
+        <Rectangle Style="{StaticResource ToolbarSep}"/>
+
+        <!-- Group 3: Record -->
         <Button x:Name="RecordButton"
                 Style="{StaticResource TabItemStyle}"
-                Content="⏺" FontSize="14"
                 ToolTip="Record macro (Ctrl+B R)"
-                Click="RecordButton_Click" />
-        <!-- New window (right-click → recent folders) -->
+                Click="RecordButton_Click">
+          <TextBlock Style="{StaticResource MdlIcon}" Text="&#xEA3A;"/>
+        </Button>
+
+        <Rectangle Style="{StaticResource ToolbarSep}"/>
+
+        <!-- Group 4: Window / tools -->
         <Button Style="{StaticResource TabItemStyle}"
-                Content="⊞" FontSize="14"
                 ToolTip="New window (Ctrl+Shift+N) · Right-click for recent folders"
                 Click="NewWindowButton_Click"
                 ContextMenuOpening="NewWindow_ContextMenuOpening">
           <Button.ContextMenu><ContextMenu /></Button.ContextMenu>
+          <TextBlock Style="{StaticResource MdlIcon}" Text="&#xE8A7;"/>
         </Button>
-        <!-- Recent folders manager -->
         <Button Style="{StaticResource TabItemStyle}"
-                Content="📂" FontSize="14"
                 ToolTip="Recent folders"
-                Click="RecentFoldersButton_Click" />
-        <!-- Session manager -->
+                Click="RecentFoldersButton_Click">
+          <TextBlock Style="{StaticResource MdlIcon}" Text="&#xE8B7;"/>
+        </Button>
         <Button Style="{StaticResource TabItemStyle}"
-                Content="💾" FontSize="14"
                 ToolTip="Session manager (Ctrl+B O)"
-                Click="SessionButton_Click" />
-        <!-- Macro manager -->
+                Click="SessionButton_Click">
+          <TextBlock Style="{StaticResource MdlIcon}" Text="&#xE74E;"/>
+        </Button>
         <Button Style="{StaticResource TabItemStyle}"
-                Content="📋" FontSize="14"
                 ToolTip="Macro manager (Ctrl+B M)"
-                Click="MacroButton_Click" />
-        <!-- Settings -->
+                Click="MacroButton_Click">
+          <TextBlock Style="{StaticResource MdlIcon}" Text="&#xE8A5;"/>
+        </Button>
+
+        <Rectangle Style="{StaticResource ToolbarSep}"/>
+
+        <!-- Group 5: Settings -->
         <Button Style="{StaticResource TabItemStyle}"
-                Content="⚙" FontSize="14"
                 ToolTip="Settings"
-                Click="SettingsButton_Click" />
+                Click="SettingsButton_Click">
+          <TextBlock Style="{StaticResource MdlIcon}" Text="&#xE713;"/>
+        </Button>
       </StackPanel>
     </Grid>
 
@@ -263,16 +374,25 @@
                  Margin="8,0" />
 
       <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0">
-        <TextBlock x:Name="RecordingIndicator"
-                   Text="⏺ RECORDING"
-                   Foreground="{DynamicResource KmuxBrushRed}"
-                   FontSize="11"
-                   FontWeight="Bold"
-                   VerticalAlignment="Center"
-                   Margin="0,0,12,0"
-                   Visibility="Collapsed" />
+        <!-- Recording indicator: shape (dot) + text for accessibility -->
+        <StackPanel x:Name="RecordingIndicator" Orientation="Horizontal"
+                    Visibility="Collapsed" Margin="0,0,12,0" VerticalAlignment="Center">
+          <Ellipse Width="7" Height="7" Fill="{DynamicResource KmuxBrushRed}"
+                   Margin="0,0,5,0" VerticalAlignment="Center"/>
+          <TextBlock Text="RECORDING"
+                     Foreground="{DynamicResource KmuxBrushRed}"
+                     FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+        </StackPanel>
+        <!-- First-run Ctrl+B hint — dismissed after first Ctrl+B press -->
+        <Border x:Name="CtrlBHint"
+                Background="{DynamicResource KmuxBrushSurface0}"
+                CornerRadius="3" Padding="7,2" Margin="0,0,8,0" VerticalAlignment="Center">
+          <TextBlock Text="Tip: Ctrl+B is the command prefix"
+                     Foreground="{DynamicResource KmuxBrushSubtext1}"
+                     FontSize="11" VerticalAlignment="Center"/>
+        </Border>
         <TextBlock Text="Ctrl+B → prefix"
-                   Foreground="{DynamicResource KmuxBrushSurface1}"
+                   Foreground="{DynamicResource KmuxBrushSubtext0}"
                    FontSize="11"
                    VerticalAlignment="Center" />
       </StackPanel>

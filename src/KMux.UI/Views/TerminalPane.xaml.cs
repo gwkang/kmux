@@ -126,18 +126,21 @@ public partial class TerminalPane : UserControl, IDisposable
 
     private void UpdateFocusBorder()
     {
+        // Thickness is always 2 — only color changes to avoid visual noise from size shifts
+        FocusBorder.BorderThickness = new Thickness(2);
+
         if (ViewModel?.IsClaudeReady == true)
         {
-            // Bright green border: Claude finished and waiting for input
-            FocusBorder.BorderBrush     = ThemeHelper.GetBrush(ThemeResourceKeys.Green, Color.FromRgb(166, 227, 161));
-            FocusBorder.BorderThickness = new Thickness(4);
+            // Green border: Claude finished and waiting for input
+            FocusBorder.BorderBrush = ThemeHelper.GetBrush(ThemeResourceKeys.Green, Color.FromRgb(166, 227, 161));
+        }
+        else if (ViewModel?.IsFocused == true)
+        {
+            FocusBorder.BorderBrush = ThemeHelper.GetBrush(ThemeResourceKeys.Accent, Color.FromRgb(137, 180, 250));
         }
         else
         {
-            FocusBorder.BorderBrush = ViewModel?.IsFocused == true
-                ? ThemeHelper.GetBrush(ThemeResourceKeys.Accent,   Color.FromRgb(137, 180, 250))
-                : ThemeHelper.GetBrush(ThemeResourceKeys.Surface0, Color.FromRgb(49,  50,  68));
-            FocusBorder.BorderThickness = new Thickness(ViewModel?.IsClaudeBusy == true ? 3 : 2);
+            FocusBorder.BorderBrush = ThemeHelper.GetBrush(ThemeResourceKeys.Surface0, Color.FromRgb(49, 50, 68));
         }
     }
 

@@ -3,53 +3,98 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Recent Folders"
         Width="540" Height="420"
-        Background="#1e1e2e"
+        Background="{DynamicResource KmuxBrushBase}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize"
         MinWidth="360" MinHeight="280">
 
   <Window.Resources>
     <Style x:Key="ActionBtn" TargetType="Button">
-      <Setter Property="Background" Value="#313244"/>
-      <Setter Property="Foreground" Value="#cdd6f4"/>
+      <Setter Property="Background"      Value="{DynamicResource KmuxBrushSurface0}"/>
+      <Setter Property="Foreground"      Value="{DynamicResource KmuxBrushText}"/>
       <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="Padding" Value="12,6"/>
-      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Padding"         Value="12,6"/>
+      <Setter Property="Cursor"          Value="Hand"/>
+      <Setter Property="Margin"          Value="4,0"/>
+      <Setter Property="MinWidth"        Value="60"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    Padding="{TemplateBinding Padding}"
+                    CornerRadius="4">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource KmuxBrushSurface1}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource KmuxBrushSurface0}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
   </Window.Resources>
 
-  <Grid Margin="16">
+  <Grid x:Name="RootContent" Margin="16" Opacity="0" RenderTransformOrigin="0.5,0.5">
+    <Grid.RenderTransform>
+      <ScaleTransform x:Name="EntryScale" ScaleX="0.96" ScaleY="0.96"/>
+    </Grid.RenderTransform>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
       <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
-    <TextBlock Grid.Row="0" Text="Recent Folders"
-               Foreground="#cdd6f4" FontSize="16" FontWeight="SemiBold"
+    <TextBlock Grid.Row="0"
+               Text="Recent Folders"
+               Foreground="{DynamicResource KmuxBrushText}"
+               FontSize="16" FontWeight="SemiBold"
                Margin="0,0,0,12"/>
 
     <ListBox Grid.Row="1" x:Name="FolderList"
-             Background="#181825"
-             BorderBrush="#313244"
-             Foreground="#cdd6f4"
+             Background="{DynamicResource KmuxBrushMantle}"
+             BorderBrush="{DynamicResource KmuxBrushSurface0}"
+             Foreground="{DynamicResource KmuxBrushText}"
              SelectionMode="Single"
              ScrollViewer.HorizontalScrollBarVisibility="Auto">
       <ListBox.ItemContainerStyle>
         <Style TargetType="ListBoxItem">
-          <Setter Property="Padding" Value="8,4"/>
-          <Setter Property="FontFamily" Value="Cascadia Code, Consolas, monospace"/>
-          <Setter Property="FontSize" Value="12"/>
+          <Setter Property="Padding"         Value="8,5"/>
+          <Setter Property="FontFamily"      Value="Cascadia Code, Consolas, monospace"/>
+          <Setter Property="FontSize"        Value="12"/>
+          <Setter Property="BorderThickness" Value="0"/>
+          <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
           <Style.Triggers>
             <Trigger Property="IsSelected" Value="True">
-              <Setter Property="Background" Value="#45475a"/>
+              <Setter Property="Background" Value="{DynamicResource KmuxBrushSurface0}"/>
             </Trigger>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter Property="Background" Value="#313244"/>
+              <Setter Property="Background" Value="{DynamicResource KmuxBrushBase}"/>
             </Trigger>
           </Style.Triggers>
         </Style>
       </ListBox.ItemContainerStyle>
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <TextBlock Text="{Binding}" VerticalAlignment="Center">
+            <TextBlock.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="Remove from list"
+                          Tag="{Binding PlacementTarget.DataContext,
+                                RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                          Click="ContextRemove_Click"
+                          Foreground="{DynamicResource KmuxBrushRed}"/>
+              </ContextMenu>
+            </TextBlock.ContextMenu>
+          </TextBlock>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
     </ListBox>
 
     <Grid Grid.Row="2" Margin="0,12,0,0">
@@ -58,15 +103,19 @@
         <ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
 
+      <!-- Left: non-destructive first, destructive separated to the right -->
       <StackPanel Grid.Column="0" Orientation="Horizontal">
-        <Button Content="추가..."   Style="{StaticResource ActionBtn}" Click="AddBtn_Click"/>
-        <Button Content="삭제"      Style="{StaticResource ActionBtn}" Click="DeleteBtn_Click"
-                Foreground="#f38ba8"/>
-        <Button Content="전체 삭제" Style="{StaticResource ActionBtn}" Click="ClearBtn_Click"
-                Foreground="#f38ba8"/>
+        <Button Content="Add..."    Style="{StaticResource ActionBtn}" Click="AddBtn_Click"
+                Margin="0,0,4,0"/>
+        <Button Content="Remove"    Style="{StaticResource ActionBtn}" Click="DeleteBtn_Click"
+                Foreground="{DynamicResource KmuxBrushRed}"/>
+        <Button Content="Clear All" Style="{StaticResource ActionBtn}" Click="ClearBtn_Click"
+                Foreground="{DynamicResource KmuxBrushRed}"
+                Margin="8,0,0,0"/>
       </StackPanel>
 
-      <Button Grid.Column="1" Content="닫기" Style="{StaticResource ActionBtn}" Click="CloseBtn_Click"/>
+      <Button Grid.Column="1" Content="Close" Style="{StaticResource ActionBtn}" Click="CloseBtn_Click"
+              Margin="0"/>
     </Grid>
   </Grid>
 </Window>

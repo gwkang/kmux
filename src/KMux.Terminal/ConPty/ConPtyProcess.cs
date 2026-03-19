@@ -145,26 +145,35 @@ public sealed class ConPtyProcess : ITerminalProcess
 
     public async ValueTask DisposeAsync()
     {
+        // Safe on any thread — just flips a flag
         _exitCts.Cancel();
 
-        // Kill the process if still running
-        try { TerminateProcess(_processInfo.hProcess, 0); } catch { }
+        // All handle operations must run off the UI thread:
+        // - TerminateProcess: quick P/Invoke, but no reason to block UI
+        // - ClosePseudoConsole: blocks until conhost.exe exits
+        // - CloseHandle on pipe: blocks until pending synchronous I/O completes
+        await Task.Run(() =>
+        {
+            try { TerminateProcess(_processInfo.hProcess, 0); } catch { }
 
-        // Close the output pipe so PumpOutput's blocking Read() unblocks immediately.
-        // Must happen before waiting on _pumpTask, otherwise the 2s timeout always fires.
-        _pty.OutputRead.Dispose();
+            // ClosePseudoConsole kills conhost, which closes the write end of the
+            // output pipe. This causes PumpOutput's blocking ReadFile to return,
+            // eliminating any pending I/O so CloseHandle won't deadlock.
+            try { ClosePseudoConsole(_pty.Handle); } catch { }
 
-        // Wait for pump to exit (it will detect pipe closure)
-        try { await _pumpTask.WaitAsync(TimeSpan.FromSeconds(2)); } catch { }
+            // Now safe — no pending I/O on these handles
+            try { _inputStream.Dispose(); }  catch { }
+            try { _outputStream.Dispose(); } catch { }
+            _pty.InputWrite.Dispose();
+            _pty.OutputRead.Dispose();
 
-        // FileStreams use non-owning SafeFileHandle wrappers, so Dispose is safe
-        // and won't close the underlying handles — those are owned by _pty.
-        try { _inputStream.Dispose(); }  catch { }
-        try { _outputStream.Dispose(); } catch { }
+            CloseHandle(_processInfo.hThread);
+            CloseHandle(_processInfo.hProcess);
+        }).ConfigureAwait(false);
 
-        CloseHandle(_processInfo.hThread);
-        CloseHandle(_processInfo.hProcess);
-        _pty.Dispose();
+        // Wait for PumpOutput to finish (should already be done after pipe closure)
+        try { await _pumpTask.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false); } catch { }
+
         _exitCts.Dispose();
     }
 }

@@ -3,26 +3,64 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Macro Manager"
         Width="680" Height="520"
-        Background="#1e1e2e"
+        MinWidth="560" MinHeight="420"
+        Background="{DynamicResource KmuxBrushBase}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize">
 
   <Window.Resources>
     <Style x:Key="ActionBtn" TargetType="Button">
-      <Setter Property="Background" Value="#313244"/>
-      <Setter Property="Foreground" Value="#cdd6f4"/>
+      <Setter Property="Background"      Value="{DynamicResource KmuxBrushSurface0}"/>
+      <Setter Property="Foreground"      Value="{DynamicResource KmuxBrushText}"/>
       <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="Padding" Value="12,6"/>
-      <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Margin" Value="4,0"/>
+      <Setter Property="Padding"         Value="12,6"/>
+      <Setter Property="Cursor"          Value="Hand"/>
+      <Setter Property="Margin"          Value="4,0"/>
+      <Setter Property="MinWidth"        Value="60"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    Padding="{TemplateBinding Padding}"
+                    CornerRadius="4">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource KmuxBrushSurface1}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource KmuxBrushSurface0}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
-    <Style x:Key="Label" TargetType="TextBlock">
-      <Setter Property="Foreground" Value="#a6adc8"/>
-      <Setter Property="FontSize" Value="12"/>
+    <Style x:Key="FieldLabel" TargetType="TextBlock">
+      <Setter Property="Foreground"        Value="{DynamicResource KmuxBrushSubtext1}"/>
+      <Setter Property="FontSize"          Value="12"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- DataGrid column header styling -->
+    <Style TargetType="DataGridColumnHeader">
+      <Setter Property="Background"      Value="{DynamicResource KmuxBrushSurface0}"/>
+      <Setter Property="Foreground"      Value="{DynamicResource KmuxBrushSubtext1}"/>
+      <Setter Property="Padding"         Value="8,5"/>
+      <Setter Property="BorderBrush"     Value="{DynamicResource KmuxBrushSurface1}"/>
+      <Setter Property="BorderThickness" Value="0,0,0,1"/>
+      <Setter Property="FontSize"        Value="11"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
     </Style>
   </Window.Resources>
 
-  <Grid Margin="16">
+  <Grid x:Name="RootContent" Margin="16" Opacity="0" RenderTransformOrigin="0.5,0.5">
+    <Grid.RenderTransform>
+      <ScaleTransform x:Name="EntryScale" ScaleX="0.96" ScaleY="0.96"/>
+    </Grid.RenderTransform>
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="220"/>
       <ColumnDefinition Width="8"/>
@@ -36,23 +74,44 @@
 
     <!-- Left: macro list -->
     <TextBlock Grid.Column="0" Grid.Row="0"
-               Text="Macros" Foreground="#cdd6f4" FontSize="15" FontWeight="SemiBold"
+               Text="Macros"
+               Foreground="{DynamicResource KmuxBrushText}"
+               FontSize="15" FontWeight="SemiBold"
                Margin="0,0,0,8"/>
 
     <ListBox Grid.Column="0" Grid.Row="1"
              x:Name="MacroList"
-             Background="#181825" BorderBrush="#313244" Foreground="#cdd6f4"
+             Background="{DynamicResource KmuxBrushMantle}"
+             BorderBrush="{DynamicResource KmuxBrushSurface0}"
+             Foreground="{DynamicResource KmuxBrushText}"
              SelectionChanged="MacroList_SelectionChanged">
+      <ListBox.ItemContainerStyle>
+        <Style TargetType="ListBoxItem">
+          <Setter Property="Padding"         Value="8,5"/>
+          <Setter Property="BorderThickness" Value="0"/>
+          <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+          <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter Property="Background" Value="{DynamicResource KmuxBrushSurface0}"/>
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter Property="Background" Value="{DynamicResource KmuxBrushBase}"/>
+            </Trigger>
+          </Style.Triggers>
+        </Style>
+      </ListBox.ItemContainerStyle>
       <ListBox.ItemTemplate>
         <DataTemplate>
-          <TextBlock Text="{Binding Name}" Padding="4,2"/>
+          <TextBlock Text="{Binding Name}"/>
         </DataTemplate>
       </ListBox.ItemTemplate>
     </ListBox>
 
     <!-- Right: detail / editor -->
     <TextBlock Grid.Column="2" Grid.Row="0"
-               Text="Actions" Foreground="#cdd6f4" FontSize="15" FontWeight="SemiBold"
+               Text="Actions"
+               Foreground="{DynamicResource KmuxBrushText}"
+               FontSize="15" FontWeight="SemiBold"
                Margin="0,0,0,8"/>
 
     <Grid Grid.Column="2" Grid.Row="1">
@@ -62,52 +121,69 @@
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
 
-      <!-- Name + key binding -->
-      <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-        <TextBlock Style="{StaticResource Label}" Text="Name:" VerticalAlignment="Center"/>
-        <TextBox x:Name="MacroNameBox" Width="160"
-                 Background="#313244" Foreground="#cdd6f4" BorderBrush="#45475a"
-                 Padding="6,4"/>
-        <TextBlock Style="{StaticResource Label}" Text="Hotkey:" VerticalAlignment="Center"/>
-        <TextBox x:Name="HotkeyBox" Width="100"
-                 Background="#313244" Foreground="#cdd6f4" BorderBrush="#45475a"
-                 Padding="6,4" ToolTip="e.g. Ctrl+B 1"/>
-      </StackPanel>
+      <!-- Name + key binding (with proper spacing) -->
+      <Grid Grid.Row="0" Margin="0,0,0,8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="16"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="110"/>
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Name" Margin="0,0,8,0"/>
+        <TextBox   Grid.Column="1" x:Name="MacroNameBox"
+                   Background="{DynamicResource KmuxBrushSurface0}"
+                   Foreground="{DynamicResource KmuxBrushText}"
+                   BorderBrush="{DynamicResource KmuxBrushSurface1}"
+                   CaretBrush="{DynamicResource KmuxBrushText}"
+                   Padding="6,4"/>
+        <TextBlock Grid.Column="3" Style="{StaticResource FieldLabel}" Text="Hotkey" Margin="0,0,8,0"/>
+        <TextBox   Grid.Column="4" x:Name="HotkeyBox"
+                   Background="{DynamicResource KmuxBrushSurface0}"
+                   Foreground="{DynamicResource KmuxBrushText}"
+                   BorderBrush="{DynamicResource KmuxBrushSurface1}"
+                   CaretBrush="{DynamicResource KmuxBrushText}"
+                   Padding="6,4"
+                   ToolTip="e.g. Ctrl+B 1"/>
+      </Grid>
 
       <!-- Action list (editable) -->
       <DataGrid Grid.Row="1"
                 x:Name="ActionGrid"
-                Background="#181825"
-                Foreground="#cdd6f4"
-                RowBackground="#181825"
-                AlternatingRowBackground="#1e1e2e"
-                BorderBrush="#313244"
+                Background="{DynamicResource KmuxBrushMantle}"
+                Foreground="{DynamicResource KmuxBrushText}"
+                RowBackground="{DynamicResource KmuxBrushMantle}"
+                AlternatingRowBackground="{DynamicResource KmuxBrushBase}"
+                BorderBrush="{DynamicResource KmuxBrushSurface0}"
                 GridLinesVisibility="Horizontal"
+                HorizontalGridLinesBrush="{DynamicResource KmuxBrushSurface0}"
                 HeadersVisibility="Column"
                 AutoGenerateColumns="False"
                 CanUserAddRows="False">
         <DataGrid.Columns>
-          <DataGridTextColumn Header="Type"    Width="100" Binding="{Binding ActionType}"/>
-          <DataGridTextColumn Header="Data"    Width="*"   Binding="{Binding Data}"/>
-          <DataGridTextColumn Header="Delay"   Width="70"  Binding="{Binding DelayMs}"/>
+          <DataGridTextColumn Header="Type"  Width="100" Binding="{Binding ActionType}"/>
+          <DataGridTextColumn Header="Data"  Width="*"   Binding="{Binding Data}"/>
+          <DataGridTextColumn Header="Delay" Width="70"  Binding="{Binding DelayMs}"/>
         </DataGrid.Columns>
       </DataGrid>
 
-      <!-- Checkbox -->
+      <!-- Preserve timings checkbox -->
       <CheckBox Grid.Row="2" x:Name="PreserveTimingsCheck"
                 Content="Preserve timings during playback"
-                Foreground="#a6adc8" Margin="0,8,0,0" IsChecked="True"/>
+                Foreground="{DynamicResource KmuxBrushSubtext1}"
+                Margin="0,8,0,0"
+                IsChecked="True"/>
     </Grid>
 
     <!-- Bottom buttons -->
     <StackPanel Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="2"
                 Orientation="Horizontal" HorizontalAlignment="Right"
                 Margin="0,12,0,0">
-      <Button Content="▶ Play"     Style="{StaticResource ActionBtn}" Click="PlayBtn_Click"/>
-      <Button Content="💾 Save"     Style="{StaticResource ActionBtn}" Click="SaveBtn_Click"/>
-      <Button Content="🗑 Delete"   Style="{StaticResource ActionBtn}" Click="DeleteBtn_Click"
-              Foreground="#f38ba8"/>
-      <Button Content="Close"      Style="{StaticResource ActionBtn}" Click="CloseBtn_Click"/>
+      <Button Content="Play"   Style="{StaticResource ActionBtn}" Click="PlayBtn_Click"/>
+      <Button Content="Save"   Style="{StaticResource ActionBtn}" Click="SaveBtn_Click"/>
+      <Button Content="Delete" Style="{StaticResource ActionBtn}" Click="DeleteBtn_Click"
+              Foreground="{DynamicResource KmuxBrushRed}"/>
+      <Button Content="Close"  Style="{StaticResource ActionBtn}" Click="CloseBtn_Click"/>
     </StackPanel>
   </Grid>
 </Window>

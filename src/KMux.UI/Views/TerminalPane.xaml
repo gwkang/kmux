@@ -6,19 +6,20 @@
 
   <Grid>
     <Grid.RowDefinitions>
-      <RowDefinition Height="Auto" />  <!-- Pane header bar -->
-      <RowDefinition Height="*"    />  <!-- Terminal content -->
+      <RowDefinition Height="20" />  <!-- Pane header bar (fixed height) -->
+      <RowDefinition Height="*"  />  <!-- Terminal content -->
     </Grid.RowDefinitions>
 
-    <!-- Pane header: folder name (left) + Claude activity (right) -->
+    <!-- Pane header: folder path (left, middle-clipped) + Claude activity (right) -->
     <Border Grid.Row="0"
             Background="{DynamicResource KmuxBrushCrust}"
-            Padding="6,2">
+            Padding="8,0">
       <Grid>
         <TextBlock x:Name="PathText"
                    FontSize="11"
                    Foreground="{DynamicResource KmuxBrushSubtext0}"
-                   VerticalAlignment="Center" />
+                   VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis" />
         <TextBlock x:Name="ActivityText"
                    FontSize="11"
                    HorizontalAlignment="Right"
@@ -28,7 +29,7 @@
       </Grid>
     </Border>
 
-    <!-- Focus border indicator -->
+    <!-- Focus border indicator (accent color when focused, subtle when not) -->
     <Border x:Name="FocusBorder"
             Grid.Row="1"
             BorderThickness="2"
@@ -36,10 +37,10 @@
             Panel.ZIndex="1"
             IsHitTestVisible="False" />
 
-    <!-- Activity bar: thin top strip, visible when Claude is working -->
+    <!-- Activity bar: top strip, visible when Claude is working -->
     <Rectangle x:Name="ActivityBar"
                Grid.Row="1"
-               Height="2"
+               Height="3"
                VerticalAlignment="Top"
                HorizontalAlignment="Stretch"
                Panel.ZIndex="2"

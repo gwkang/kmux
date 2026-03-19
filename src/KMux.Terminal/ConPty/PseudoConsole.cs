@@ -61,8 +61,11 @@ internal sealed class PseudoConsole : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         ClosePseudoConsole(Handle);
         InputWrite.Dispose();
         OutputRead.Dispose();
     }
+    private bool _disposed;
 }

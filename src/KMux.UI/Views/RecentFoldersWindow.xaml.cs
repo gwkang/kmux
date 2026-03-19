@@ -1,5 +1,7 @@
 using System.Windows;
+using System.Windows.Controls;
 using KMux.Session;
+using KMux.UI.Infrastructure;
 
 namespace KMux.UI.Views;
 
@@ -12,6 +14,7 @@ public partial class RecentFoldersWindow : Window
         _store = store;
         InitializeComponent();
         Loaded += async (_, _) => FolderList.ItemsSource = await _store.LoadAsync();
+        ContentRendered += (_, _) => WindowAnimations.PlayEntry(RootContent, EntryScale);
     }
 
     private async void AddBtn_Click(object sender, RoutedEventArgs e)
@@ -34,6 +37,12 @@ public partial class RecentFoldersWindow : Window
         if (r != MessageBoxResult.Yes) return;
         await _store.ClearAsync();
         FolderList.ItemsSource = null;
+    }
+
+    private async void ContextRemove_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: string dir })
+            FolderList.ItemsSource = await _store.RemoveAsync(dir);
     }
 
     private void CloseBtn_Click(object sender, RoutedEventArgs e) => Close();

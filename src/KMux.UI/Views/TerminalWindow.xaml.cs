@@ -108,31 +108,19 @@ public partial class TerminalWindow : Window
     private void NewTab_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
         if (sender is not FrameworkElement fe || VM is null) return;
-        var dirs = GetDirsWithCurrent(VM.RecentDirectories).ToList();
-
-        var menu = new ContextMenu();
-        menu.Items.Add(BuildFolderSubmenu("새 탭으로 열기", dirs,
-            dir => VM.NewTabCommand.Execute(dir),
-            () => { if (BrowseForDirectory("새 탭 폴더 선택") is string d) VM.NewTabCommand.Execute(d); }));
-        menu.Items.Add(BuildFolderSubmenu("Claude 탭으로 열기", dirs,
+        var dirs = GetDirsWithCurrent(VM.RecentDirectories);
+        fe.ContextMenu = BuildRecentDirMenu(dirs,
             dir => VM.NewClaudeTabCommand.Execute(dir),
-            () => { if (BrowseForDirectory("Claude 탭 폴더 선택") is string d) VM.NewClaudeTabCommand.Execute(d); }));
-        fe.ContextMenu = menu;
+            () => { if (BrowseForDirectory("Claude 탭 폴더 선택") is string d) VM.NewClaudeTabCommand.Execute(d); });
     }
 
     private void NewWindow_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
         if (sender is not FrameworkElement fe || VM is null) return;
-        var dirs = GetDirsWithCurrent(VM.RecentDirectories).ToList();
-
-        var menu = new ContextMenu();
-        menu.Items.Add(BuildFolderSubmenu("새 창으로 열기", dirs,
-            OpenNewWindow,
-            () => { if (BrowseForDirectory("새 창 폴더 선택") is string d) OpenNewWindow(d); }));
-        menu.Items.Add(BuildFolderSubmenu("Claude 창으로 열기", dirs,
+        var dirs = GetDirsWithCurrent(VM.RecentDirectories);
+        fe.ContextMenu = BuildRecentDirMenu(dirs,
             OpenNewClaudeWindow,
-            () => { if (BrowseForDirectory("Claude 창 폴더 선택") is string d) OpenNewClaudeWindow(d); }));
-        fe.ContextMenu = menu;
+            () => { if (BrowseForDirectory("Claude 창 폴더 선택") is string d) OpenNewClaudeWindow(d); });
     }
 
     private IEnumerable<string> GetDirsWithCurrent(IEnumerable<string> recentDirs)
@@ -184,12 +172,6 @@ public partial class TerminalWindow : Window
         return dlg.ShowDialog(this) == true ? dlg.FolderName : null;
     }
 
-    private void OpenNewWindow(string workingDir)
-    {
-        if (VM is null) return;
-        OpenWindow(VM.DefaultProfile.WithWorkingDir(workingDir));
-    }
-
     private void OpenNewClaudeWindow(string workingDir)
         => OpenWindow(ShellProfile.ClaudeCode.WithWorkingDir(workingDir));
 
@@ -207,13 +189,6 @@ public partial class TerminalWindow : Window
         var dirs = GetDirsWithCurrent(VM.RecentDirectories).ToList();
 
         var menu = new ContextMenu();
-        menu.Items.Add(BuildFolderSubmenu("새 탭으로 열기", dirs,
-            dir => VM.NewTabCommand.Execute(dir),
-            () => { if (BrowseForDirectory("새 탭 폴더 선택") is string d) VM.NewTabCommand.Execute(d); }));
-        menu.Items.Add(BuildFolderSubmenu("새 창으로 열기", dirs,
-            OpenNewWindow,
-            () => { if (BrowseForDirectory("새 창 폴더 선택") is string d) OpenNewWindow(d); }));
-        menu.Items.Add(new Separator());
         menu.Items.Add(BuildFolderSubmenu("Claude 탭으로 열기", dirs,
             dir => VM.NewClaudeTabCommand.Execute(dir),
             () => { if (BrowseForDirectory("Claude 탭 폴더 선택") is string d) VM.NewClaudeTabCommand.Execute(d); }));
@@ -259,7 +234,10 @@ public partial class TerminalWindow : Window
     public void HandleAcceleratorKey(Key key, ModifierKeys mods)
     {
         if (VM?.HandleKey(key, mods) == true)
+        {
             UpdateRecordingIndicator();
+            DismissCtrlBHint();
+        }
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -272,6 +250,7 @@ public partial class TerminalWindow : Window
         {
             e.Handled = true;
             UpdateRecordingIndicator();
+            DismissCtrlBHint();
         }
     }
 
@@ -285,5 +264,11 @@ public partial class TerminalWindow : Window
                 System.Windows.Media.Color.FromRgb(243, 139, 168))
             : new System.Windows.Media.SolidColorBrush(
                 System.Windows.Media.Color.FromRgb(166, 173, 200));
+    }
+
+    private void DismissCtrlBHint()
+    {
+        if (CtrlBHint.Visibility == Visibility.Visible)
+            CtrlBHint.Visibility = Visibility.Collapsed;
     }
 }

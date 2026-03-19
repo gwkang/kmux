@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using KMux.Macro;
+using KMux.UI.Infrastructure;
 
 namespace KMux.UI.Views;
 
@@ -13,6 +14,7 @@ public partial class MacroManagerWindow : Window
     {
         InitializeComponent();
         Loaded += async (_, _) => await RefreshAsync();
+        ContentRendered += (_, _) => WindowAnimations.PlayEntry(RootContent, EntryScale);
     }
 
     private async Task RefreshAsync()

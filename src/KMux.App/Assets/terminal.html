@@ -170,6 +170,11 @@
     window.termSearch = (q, opts) => searchAddon.findNext(q, opts);
     window.termClear  = () => term.clear();
 
+    // Send current terminal size before "ready" so C# always starts the process.
+    // The initial fitAddon.fit() on line 78 runs before term.onResize is registered,
+    // so if the size doesn't change again later, the resize message is never sent.
+    window.chrome.webview.postMessage({ type: 'resize', cols: term.cols, rows: term.rows });
+
     // Signal C# that xterm.js is ready to receive output
     window.chrome.webview.postMessage({ type: 'ready' });
   </script>
