@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Windows;
 using KMux.Core.Models;
+using KMux.Session;
 using KMux.Terminal.Shell;
 using KMux.UI.Services;
 using KMux.UI.ViewModels;
@@ -12,12 +13,14 @@ namespace KMux.App;
 
 public partial class App : Application
 {
-    protected override void OnStartup(StartupEventArgs e)
+    private readonly WorkspaceStore _workspaceStore = new();
+
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
         // Load settings and apply theme before first window opens
-        AppSettingsService.LoadAndApplyAsync().GetAwaiter().GetResult();
+        await AppSettingsService.LoadAndApplyAsync();
 
         // Detect best available shell
         var profiles = ShellProfileDetector.DetectProfiles();
@@ -32,6 +35,17 @@ public partial class App : Application
         // Register Claude Code hooks so pane activity is visible in the header
         RegisterClaudeHooks(assetsPath);
 
+        // Restore last workspace if the setting is enabled
+        if (AppSettingsService.Current.RestoreOnStartup)
+        {
+            var workspace = await _workspaceStore.LoadAsync();
+            if (workspace?.Windows?.Count > 0)
+            {
+                RestoreWorkspace(workspace, profile, assetsPath);
+                return;
+            }
+        }
+
         var vm  = new TerminalWindowViewModel(profile);
         var win = new TerminalWindow
         {
@@ -40,6 +54,56 @@ public partial class App : Application
         };
 
         win.Show();
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        SaveWorkspace();
+        base.OnExit(e);
+    }
+
+    private void SaveWorkspace()
+    {
+        try
+        {
+            var terminalWindows = Windows.OfType<TerminalWindow>().ToList();
+            if (terminalWindows.Count == 0) return;
+
+            var windowLayouts = terminalWindows
+                .Select(win => (win.DataContext as TerminalWindowViewModel)?.CaptureLayout(win))
+                .Where(l => l is not null)
+                .Cast<WindowLayout>()
+                .ToList();
+
+            if (windowLayouts.Count == 0) return;
+
+            _workspaceStore.Save(new KMux.Core.Models.Session
+            {
+                Name    = "Last Workspace",
+                Windows = windowLayouts
+            });
+        }
+        catch { /* Don't crash shutdown if save fails */ }
+    }
+
+    private void RestoreWorkspace(KMux.Core.Models.Session workspace, ShellProfile defaultProfile, string assetsPath)
+    {
+        foreach (var winLayout in workspace.Windows)
+        {
+            var vm  = new TerminalWindowViewModel(profile: defaultProfile, restore: winLayout);
+            var win = new TerminalWindow { AssetsPath = assetsPath, DataContext = vm };
+
+            if (winLayout.Width > 100 && winLayout.Height > 100)
+            {
+                win.Width  = winLayout.Width;
+                win.Height = winLayout.Height;
+            }
+            win.WindowStartupLocation = System.Windows.WindowStartupLocation.Manual;
+            win.Left = winLayout.Left;
+            win.Top  = winLayout.Top;
+
+            win.Show();
+        }
     }
 
     private static void RegisterClaudeHooks(string assetsPath)

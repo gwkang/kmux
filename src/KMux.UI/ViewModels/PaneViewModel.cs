@@ -12,8 +12,9 @@ public partial class PaneViewModel : ObservableObject, IDisposable
     public Guid PaneId => Terminal.PaneId;
 
     [ObservableProperty] private bool   _isFocused;
-    [ObservableProperty] private string _claudeActivity = "";
-    [ObservableProperty] private string _displayPath    = "";
+    [ObservableProperty] private string  _claudeActivity  = "";
+    [ObservableProperty] private string  _displayPath     = "";
+    [ObservableProperty] private string? _claudeSessionId;
 
     public bool IsActive      => Terminal.IsActive;
     public bool IsClaudeBusy  => Terminal.IsClaudeBusy;
@@ -51,7 +52,12 @@ public partial class PaneViewModel : ObservableObject, IDisposable
         Terminal.PropertyChanged += OnTerminalPropertyChanged;
         Terminal.ProcessExited   += (s, e) => ProcessExited?.Invoke(this, e);
 
-        ClaudeActivityWatcher.Instance.ActivityChanged += OnActivityChanged;
+        ClaudeActivityWatcher.Instance.ActivityChanged  += OnActivityChanged;
+        ClaudeActivityWatcher.Instance.SessionIdChanged += OnSessionIdChanged;
+
+        var existingId = ClaudeActivityWatcher.Instance.GetSessionId(paneId);
+        if (!string.IsNullOrEmpty(existingId)) _claudeSessionId = existingId;
+
         RefreshDisplayPath();
     }
 
@@ -60,6 +66,13 @@ public partial class PaneViewModel : ObservableObject, IDisposable
         if (e.PaneId == PaneId)
             System.Windows.Application.Current?.Dispatcher.InvokeAsync(
                 () => ClaudeActivity = e.Activity);
+    }
+
+    private void OnSessionIdChanged(object? sender, (Guid PaneId, string SessionId) e)
+    {
+        if (e.PaneId == PaneId)
+            System.Windows.Application.Current?.Dispatcher.InvokeAsync(
+                () => ClaudeSessionId = e.SessionId);
     }
 
     private void RefreshDisplayPath()
@@ -87,7 +100,8 @@ public partial class PaneViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        ClaudeActivityWatcher.Instance.ActivityChanged -= OnActivityChanged;
+        ClaudeActivityWatcher.Instance.ActivityChanged  -= OnActivityChanged;
+        ClaudeActivityWatcher.Instance.SessionIdChanged -= OnSessionIdChanged;
         Terminal.PropertyChanged -= OnTerminalPropertyChanged;
         Terminal.Dispose();
     }

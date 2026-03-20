@@ -3,8 +3,14 @@ using System.IO;
 namespace KMux.UI.Services;
 
 /// <summary>
-/// Watches %TEMP%/kmux-status/*.txt files written by Claude Code hooks
-/// and raises <see cref="ActivityChanged"/> whenever a pane's activity text changes.
+/// Watches %TEMP%/kmux-status/*.txt files written by Claude Code hooks.
+/// <para>
+/// File naming convention (both written by the hook script):
+/// <list type="bullet">
+///   <item><c>{paneId}.txt</c> — current tool activity text</item>
+///   <item><c>{paneId}-session.txt</c> — Claude Code session ID</item>
+/// </list>
+/// </para>
 /// </summary>
 public sealed class ClaudeActivityWatcher : IDisposable
 {
@@ -14,9 +20,11 @@ public sealed class ClaudeActivityWatcher : IDisposable
         Path.Combine(Path.GetTempPath(), "kmux-status");
 
     private readonly FileSystemWatcher _watcher;
-    private readonly Dictionary<Guid, string> _activities = new();
+    private readonly Dictionary<Guid, string>  _activities = new();
+    private readonly Dictionary<Guid, string>  _sessionIds = new();
 
-    public event EventHandler<(Guid PaneId, string Activity)>? ActivityChanged;
+    public event EventHandler<(Guid PaneId, string Activity)>?  ActivityChanged;
+    public event EventHandler<(Guid PaneId, string SessionId)>? SessionIdChanged;
 
     private ClaudeActivityWatcher()
     {
@@ -35,40 +43,59 @@ public sealed class ClaudeActivityWatcher : IDisposable
     {
         try
         {
-            if (!Guid.TryParse(Path.GetFileNameWithoutExtension(e.Name), out var paneId))
-                return;
+            var nameWithoutExt = Path.GetFileNameWithoutExtension(e.Name ?? "");
 
-            // Retry read — the writer may still hold the file open briefly
-            string text = "";
-            for (int attempt = 0; attempt < 3; attempt++)
+            if (nameWithoutExt.EndsWith("-session", StringComparison.Ordinal))
             {
-                try
-                {
-                    text = File.ReadAllText(e.FullPath).Trim();
-                    break;
-                }
-                catch (IOException)
-                {
-                    Thread.Sleep(10);
-                }
-            }
+                // Session ID file: {paneId}-session.txt
+                var guidPart = nameWithoutExt[..^"-session".Length];
+                if (!Guid.TryParse(guidPart, out var paneId)) return;
+                var id = ReadWithRetry(e.FullPath);
 
-            lock (_activities)
+                lock (_sessionIds)
+                {
+                    if (_sessionIds.TryGetValue(paneId, out var cur) && cur == id) return;
+                    _sessionIds[paneId] = id;
+                }
+                SessionIdChanged?.Invoke(this, (paneId, id));
+            }
+            else
             {
-                if (_activities.TryGetValue(paneId, out var current) && current == text)
-                    return;
-                _activities[paneId] = text;
-            }
+                // Activity file: {paneId}.txt
+                if (!Guid.TryParse(nameWithoutExt, out var paneId)) return;
+                var text = ReadWithRetry(e.FullPath);
 
-            ActivityChanged?.Invoke(this, (paneId, text));
+                lock (_activities)
+                {
+                    if (_activities.TryGetValue(paneId, out var current) && current == text) return;
+                    _activities[paneId] = text;
+                }
+                ActivityChanged?.Invoke(this, (paneId, text));
+            }
         }
         catch { /* ignore transient errors */ }
+    }
+
+    private static string ReadWithRetry(string path)
+    {
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            try { return File.ReadAllText(path).Trim(); }
+            catch (IOException) { Thread.Sleep(10); }
+        }
+        return "";
     }
 
     public string GetActivity(Guid paneId)
     {
         lock (_activities)
             return _activities.TryGetValue(paneId, out var v) ? v : "";
+    }
+
+    public string GetSessionId(Guid paneId)
+    {
+        lock (_sessionIds)
+            return _sessionIds.TryGetValue(paneId, out var v) ? v : "";
     }
 
     public void Dispose()

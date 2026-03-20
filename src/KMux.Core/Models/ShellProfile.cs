@@ -13,7 +13,11 @@ public class ShellProfile
     {
         Name = "Command Prompt",
         Executable = "cmd.exe",
-        Arguments = ""
+        Arguments = "",
+        EnvironmentVariables = new Dictionary<string, string>
+        {
+            ["PROMPT"] = "$E]7;file:///$P$E\\$P$G"
+        }
     };
 
     public static ShellProfile PowerShell => new()
@@ -48,7 +52,11 @@ public class ShellProfile
     {
         Name = "Claude Code",
         Executable = "cmd.exe",
-        Arguments = "/k claude"
+        Arguments = "/k claude",
+        EnvironmentVariables = new Dictionary<string, string>
+        {
+            ["PROMPT"] = "$E]7;file:///$P$E\\$P$G"
+        }
     };
 
     public ShellProfile WithWorkingDir(string dir) => new()

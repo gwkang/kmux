@@ -4,14 +4,21 @@
 # Requires: jq
 
 INPUT=$(cat)
-TOOL=$(echo "$INPUT"  | jq -r '.tool_name       // empty' 2>/dev/null)
-EVENT=$(echo "$INPUT" | jq -r '.hook_event_name // empty' 2>/dev/null)
 PANE_ID="${KMUX_PANE_ID:-}"
 
 [ -z "$PANE_ID" ] && exit 0
 
+TOOL=$(echo "$INPUT"       | jq -r '.tool_name       // empty' 2>/dev/null)
+EVENT=$(echo "$INPUT"      | jq -r '.hook_event_name // empty' 2>/dev/null)
+SESSION_ID=$(echo "$INPUT" | jq -r '.session_id      // empty' 2>/dev/null)
+
 STATUS_DIR="${TEMP:-${TMPDIR:-/tmp}}/kmux-status"
 mkdir -p "$STATUS_DIR"
+
+# Persist session ID whenever we see one (it's stable per Claude Code session)
+if [ -n "$SESSION_ID" ]; then
+  echo "$SESSION_ID" > "$STATUS_DIR/$PANE_ID-session.txt"
+fi
 
 case "$EVENT" in
   PreToolUse)

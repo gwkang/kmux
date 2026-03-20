@@ -5,7 +5,7 @@ param(
 
 $project = "$PSScriptRoot\src\KMux.App\KMux.App.csproj"
 
-$args = @("run", "--project", $project, "-c", $Configuration)
-if ($NoBuild) { $args += "--no-build" }
+$dotnetArgs = @("run", "--project", $project, "-c", $Configuration)
+if ($NoBuild) { $dotnetArgs += "--no-build" }
 
-dotnet @args
+dotnet @dotnetArgs

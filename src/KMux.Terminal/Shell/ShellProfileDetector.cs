@@ -4,14 +4,35 @@ namespace KMux.Terminal.Shell;
 
 public static class ShellProfileDetector
 {
+    // cmd.exe PROMPT that emits OSC 7 (current working directory notification).
+    // $E = ESC, $P = current path, $E\ = ST (string terminator), $G = >, $S = space.
+    // This keeps the visual prompt identical to the default ($P$G) while adding
+    // the invisible OSC 7 prefix that lets KMux track the shell's working directory.
+    private const string CmdPromptWithOsc7 = "$E]7;file:///$P$E\\$P$G";
+
     public static IReadOnlyList<ShellProfile> DetectProfiles()
     {
         var profiles = new List<ShellProfile>();
 
-        if (TryFind("pwsh.exe",        out var pwsh))   profiles.Add(new ShellProfile { Name = "PowerShell",         Executable = pwsh!, Arguments = "-NoLogo" });
-        if (TryFind("powershell.exe",  out var ps1))    profiles.Add(new ShellProfile { Name = "Windows PowerShell", Executable = ps1!,  Arguments = "-NoLogo" });
-        if (TryFind("cmd.exe",         out var cmd))    profiles.Add(new ShellProfile { Name = "Command Prompt",     Executable = cmd! });
-        if (TryFind("wsl.exe",         out var wsl))    profiles.Add(new ShellProfile { Name = "WSL",                Executable = wsl! });
+        if (TryFind("pwsh.exe",       out var pwsh))
+        {
+            var p = new ShellProfile { Name = "PowerShell", Executable = pwsh!, Arguments = "-NoLogo" };
+            p.EnvironmentVariables["WT_SESSION"] = Guid.NewGuid().ToString();
+            profiles.Add(p);
+        }
+        if (TryFind("powershell.exe", out var ps1))
+        {
+            var p = new ShellProfile { Name = "Windows PowerShell", Executable = ps1!, Arguments = "-NoLogo" };
+            p.EnvironmentVariables["WT_SESSION"] = Guid.NewGuid().ToString();
+            profiles.Add(p);
+        }
+        if (TryFind("cmd.exe", out var cmd))
+        {
+            var p = new ShellProfile { Name = "Command Prompt", Executable = cmd! };
+            p.EnvironmentVariables["PROMPT"] = CmdPromptWithOsc7;
+            profiles.Add(p);
+        }
+        if (TryFind("wsl.exe", out var wsl))    profiles.Add(new ShellProfile { Name = "WSL",                Executable = wsl! });
 
         // Git Bash
         string[] gitBashPaths =
@@ -24,7 +45,11 @@ public static class ShellProfileDetector
 
         // Claude Code (if `claude` is on PATH)
         if (TryFind("claude.cmd", out _) || TryFind("claude.exe", out _))
-            profiles.Add(new ShellProfile { Name = "Claude Code", Executable = "cmd.exe", Arguments = "/k claude" });
+        {
+            var p = new ShellProfile { Name = "Claude Code", Executable = "cmd.exe", Arguments = "/k claude" };
+            p.EnvironmentVariables["PROMPT"] = CmdPromptWithOsc7;
+            profiles.Add(p);
+        }
 
         return profiles.Count > 0 ? profiles : [ShellProfile.Cmd];
     }

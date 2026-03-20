@@ -71,6 +71,8 @@
       <RowDefinition Height="12"/>
       <RowDefinition Height="Auto"/>  <!-- Font section -->
       <RowDefinition Height="12"/>
+      <RowDefinition Height="Auto"/>  <!-- Startup section -->
+      <RowDefinition Height="12"/>
       <RowDefinition Height="*"/>     <!-- Preview -->
       <RowDefinition Height="14"/>
       <RowDefinition Height="Auto"/>  <!-- Buttons -->
@@ -146,8 +148,19 @@
       </StackPanel>
     </StackPanel>
 
+    <!-- Startup section -->
+    <StackPanel Grid.Row="6">
+      <TextBlock Style="{StaticResource SectionLabel}" Text="Startup"/>
+      <CheckBox x:Name="RestoreOnStartupCheck"
+                Content="앱 시작 시 마지막 세션 복원 (창·탭·pane 레이아웃 및 Claude 세션)"
+                Foreground="{DynamicResource KmuxBrushText}"
+                FontSize="12"
+                Checked="RestoreOnStartupCheck_Changed"
+                Unchecked="RestoreOnStartupCheck_Changed"/>
+    </StackPanel>
+
     <!-- Preview -->
-    <Grid Grid.Row="6">
+    <Grid Grid.Row="8">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="*"/>
@@ -173,7 +186,7 @@
     </Grid>
 
     <!-- Bottom buttons: OK | Cancel (Apply is implicit in OK) -->
-    <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right">
+    <StackPanel Grid.Row="10" Orientation="Horizontal" HorizontalAlignment="Right">
       <Button Content="OK"     Style="{StaticResource ActionBtn}" Click="OkBtn_Click"/>
       <Button Content="Apply"  Style="{StaticResource ActionBtn}" Click="ApplyBtn_Click"/>
       <Button Content="Cancel" Style="{StaticResource ActionBtn}" Click="CancelBtn_Click"/>

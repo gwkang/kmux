@@ -36,4 +36,12 @@ public class TabLayout
     public string Title       { get; set;  } = "Shell";
     public string RootPaneJson { get; set; } = "";   // serialized LayoutNode
     public ShellProfile? Profile { get; set; }
+    public List<PaneInfo> Panes { get; set; } = new();
+}
+
+public class PaneInfo
+{
+    public Guid    PaneId          { get; set; }
+    public string  WorkingDir      { get; set; } = "";
+    public string? ClaudeSessionId { get; set; }
 }

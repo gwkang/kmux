@@ -39,12 +39,8 @@ public partial class TerminalWindow : Window
 
     private void TabButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is System.Windows.Controls.Button { Tag: TabViewModel tab })
-        {
-            if (VM is null) return;
-            VM.ActiveTab = tab;
-            foreach (var t in VM.Tabs) t.IsActive = t == tab;
-        }
+        if (sender is System.Windows.Controls.Button { Tag: TabViewModel tab } && VM is not null)
+            VM.ActivateTabCommand.Execute(tab);
     }
 
     private void CloseTabButton_Click(object sender, RoutedEventArgs e)

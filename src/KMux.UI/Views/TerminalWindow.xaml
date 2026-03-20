@@ -234,10 +234,19 @@
                   </StackPanel>
                 </Button>
 
-                <!-- Close button — sibling to tab button, overlaid on right -->
-                <Button Style="{StaticResource TabCloseStyle}"
-                        Click="CloseTabButton_Click"
+                <!-- Close button — hidden for dashboard tab -->
+                <Button Click="CloseTabButton_Click"
                         Tag="{Binding}">
+                  <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource TabCloseStyle}">
+                      <Setter Property="Visibility" Value="Visible"/>
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsDashboard}" Value="True">
+                          <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Button.Style>
                   <Viewbox Width="9" Height="9">
                     <Canvas Width="12" Height="12">
                       <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
@@ -352,11 +361,35 @@
       </StackPanel>
     </Grid>
 
-    <!-- ── Pane area ──────────────────────────────────────────────────────── -->
+    <!-- ── Pane / Dashboard area ─────────────────────────────────────────── -->
     <local:PaneContainer x:Name="PaneContainer"
                          Grid.Row="1"
                          Tab="{Binding ActiveTab}"
-                         AssetsPath="{Binding AssetsPath, RelativeSource={RelativeSource AncestorType=Window}}" />
+                         AssetsPath="{Binding AssetsPath, RelativeSource={RelativeSource AncestorType=Window}}">
+      <local:PaneContainer.Style>
+        <Style TargetType="local:PaneContainer">
+          <Setter Property="Visibility" Value="Visible"/>
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding ActiveTab.IsDashboard}" Value="True">
+              <Setter Property="Visibility" Value="Collapsed"/>
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </local:PaneContainer.Style>
+    </local:PaneContainer>
+
+    <local:DashboardView Grid.Row="1">
+      <local:DashboardView.Style>
+        <Style TargetType="local:DashboardView">
+          <Setter Property="Visibility" Value="Collapsed"/>
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding ActiveTab.IsDashboard}" Value="True">
+              <Setter Property="Visibility" Value="Visible"/>
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </local:DashboardView.Style>
+    </local:DashboardView>
 
     <!-- ── Status bar ────────────────────────────────────────────────────── -->
     <Grid Grid.Row="2" Background="{DynamicResource KmuxBrushCrust}">

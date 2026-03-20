@@ -13,6 +13,7 @@ namespace KMux.UI.ViewModels;
 public partial class TerminalWindowViewModel : ObservableObject, IDisposable
 {
     public ObservableCollection<TabViewModel>  Tabs             { get; } = new();
+    public ObservableCollection<TabViewModel>  NonDashboardTabs { get; } = new();
     public ObservableCollection<string>        RecentDirectories { get; } = new();
 
     [ObservableProperty] private TabViewModel? _activeTab;
@@ -24,7 +25,7 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
     {
         get
         {
-            if (ActiveTab is null) return "KMux";
+            if (ActiveTab is null || ActiveTab.IsDashboard) return "KMux";
             var pane   = ActiveTab.GetPane(ActiveTab.ActivePaneId);
             var folder = pane?.DisplayPath;
             return string.IsNullOrEmpty(folder)
@@ -54,7 +55,8 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
         KeyBindingMap?        keyMap       = null,
         MacroStore?           macroStore   = null,
         SessionStore?         sessionStore = null,
-        RecentDirectoryStore? recentDirs   = null)
+        RecentDirectoryStore? recentDirs   = null,
+        KMux.Core.Models.WindowLayout? restore = null)
     {
         _defaultProfile = profile      ?? ShellProfile.Cmd;
         _keyMap         = keyMap       ?? KeyBindingMap.CreateDefaults();
@@ -62,9 +64,94 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
         _sessionStore   = sessionStore ?? new SessionStore();
         _recentDirStore = recentDirs   ?? new RecentDirectoryStore();
 
-        NewTab();
+        Tabs.CollectionChanged += (_, _) => SyncNonDashboardTabs();
+
+        // Dashboard tab is always first
+        var dashboard = TabViewModel.CreateDashboard();
+        Tabs.Add(dashboard);
+
+        if (restore is not null)
+            RestoreFromLayout(restore);
+        else
+            NewTab();
+
         _ = RefreshRecentDirectoriesAsync();
     }
+
+    private void SyncNonDashboardTabs()
+    {
+        NonDashboardTabs.Clear();
+        foreach (var t in Tabs)
+            if (!t.IsDashboard) NonDashboardTabs.Add(t);
+    }
+
+    private void RestoreFromLayout(KMux.Core.Models.WindowLayout layout)
+    {
+        foreach (var tabLayout in layout.Tabs)
+        {
+            LayoutNode? root = null;
+            if (!string.IsNullOrEmpty(tabLayout.RootPaneJson))
+                root = KMux.Layout.LayoutSerializer.Deserialize(tabLayout.RootPaneJson);
+
+            if (root is null)
+            {
+                CreateTab(_defaultProfile, tabLayout.Title ?? "Shell");
+                continue;
+            }
+
+            var paneMap = tabLayout.Panes.ToDictionary(p => p.PaneId);
+            var tab = new TabViewModel(
+                _defaultProfile, _recorder,
+                root, paneMap,
+                info => MakeRestoreProfile(info));
+            tab.Title = tabLayout.Title ?? "Shell";
+            Tabs.Add(tab);
+
+            foreach (var pane in tabLayout.Panes.Where(p => !string.IsNullOrEmpty(p.WorkingDir)))
+                _ = AddToRecentDirsAsync(pane.WorkingDir);
+        }
+
+        if (NonDashboardTabs.Count == 0) { NewTab(); return; }
+
+        var idx = Math.Clamp(layout.ActiveTab, 0, NonDashboardTabs.Count - 1);
+        SetActiveTab(NonDashboardTabs[idx]);
+    }
+
+    private ShellProfile MakeRestoreProfile(KMux.Core.Models.PaneInfo info)
+    {
+        var dir = string.IsNullOrEmpty(info.WorkingDir) ? _defaultProfile.WorkingDir : info.WorkingDir;
+        if (!string.IsNullOrEmpty(info.ClaudeSessionId))
+        {
+            var p = ShellProfile.ClaudeCode.WithWorkingDir(dir);
+            p.Arguments = $"/k claude --resume {info.ClaudeSessionId}";
+            return p;
+        }
+        return _defaultProfile.WithWorkingDir(dir);
+    }
+
+    private static KMux.Core.Models.TabLayout SerializeTab(TabViewModel t) => new()
+    {
+        Id           = t.Id,
+        Title        = t.Title,
+        RootPaneJson = KMux.Layout.LayoutSerializer.Serialize(t.LayoutRoot),
+        Panes        = t.AllPanes.Select(p => new KMux.Core.Models.PaneInfo
+        {
+            PaneId          = p.PaneId,
+            WorkingDir      = p.WorkingDirectory,
+            ClaudeSessionId = p.ClaudeSessionId
+        }).ToList()
+    };
+
+    /// <summary>Captures the current window state for workspace persistence.</summary>
+    public KMux.Core.Models.WindowLayout CaptureLayout(System.Windows.Window window) => new()
+    {
+        Left      = window.Left,
+        Top       = window.Top,
+        Width     = window.ActualWidth  > 0 ? window.ActualWidth  : window.Width,
+        Height    = window.ActualHeight > 0 ? window.ActualHeight : window.Height,
+        ActiveTab = ActiveTab is null ? 0 : NonDashboardTabs.IndexOf(ActiveTab),
+        Tabs      = NonDashboardTabs.Select(SerializeTab).ToList()
+    };
 
     // ── Tab Management ───────────────────────────────────────────────────────
 
@@ -87,7 +174,8 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
 
     private void CreateTab(ShellProfile profile, string titlePrefix)
     {
-        var tab = new TabViewModel(profile, _recorder) { Title = $"{titlePrefix} {Tabs.Count + 1}" };
+        var num = NonDashboardTabs.Count + 1;
+        var tab = new TabViewModel(profile, _recorder) { Title = $"{titlePrefix} {num}" };
         Tabs.Add(tab);
         SetActiveTab(tab);
         _ = AddToRecentDirsAsync(profile.WorkingDir);
@@ -118,35 +206,37 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
     public void CloseTab(TabViewModel? tab = null)
     {
         tab ??= ActiveTab;
-        if (tab is null) return;
+        if (tab is null || tab.IsDashboard) return;
 
-        var idx = Tabs.IndexOf(tab);
+        var realIdx = NonDashboardTabs.IndexOf(tab);
         Tabs.Remove(tab);
         tab.Dispose();
 
-        if (Tabs.Count == 0)
+        if (NonDashboardTabs.Count == 0)
         {
             WindowCloseRequested?.Invoke(this, EventArgs.Empty);
             return;
         }
 
-        SetActiveTab(Tabs[Math.Max(0, idx - 1)]);
+        SetActiveTab(NonDashboardTabs[Math.Max(0, realIdx - 1)]);
     }
 
     public event EventHandler? WindowCloseRequested;
 
     [RelayCommand]
-    public void NextTab()
-    {
-        if (ActiveTab is null) return;
-        SetActiveTab(Tabs[(Tabs.IndexOf(ActiveTab) + 1) % Tabs.Count]);
-    }
+    public void ActivateTab(TabViewModel tab) => SetActiveTab(tab);
 
     [RelayCommand]
-    public void PrevTab()
+    public void NextTab() => CycleTab(+1);
+
+    [RelayCommand]
+    public void PrevTab() => CycleTab(-1);
+
+    private void CycleTab(int direction)
     {
-        if (ActiveTab is null) return;
-        SetActiveTab(Tabs[(Tabs.IndexOf(ActiveTab) - 1 + Tabs.Count) % Tabs.Count]);
+        if (ActiveTab is null || ActiveTab.IsDashboard) return;
+        var idx = NonDashboardTabs.IndexOf(ActiveTab);
+        SetActiveTab(NonDashboardTabs[(idx + direction + NonDashboardTabs.Count) % NonDashboardTabs.Count]);
     }
 
     // Only update the two tabs that change, not the whole collection
@@ -205,10 +295,12 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public void SplitVertical() => SplitAndSave(SplitDirection.Vertical);
 
+    private bool ActiveTabIsTerminal => ActiveTab is { IsDashboard: false };
+
     private void SplitAndSave(SplitDirection dir)
     {
-        if (ActiveTab is null) return;
-        var srcPane = ActiveTab.GetPane(ActiveTab.ActivePaneId);
+        if (!ActiveTabIsTerminal) return;
+        var srcPane = ActiveTab!.GetPane(ActiveTab.ActivePaneId);
         var workingDir = srcPane?.WorkingDirectory;
         ActiveTab.SplitPane(ActiveTab.ActivePaneId, dir);
         if (!string.IsNullOrEmpty(workingDir))
@@ -216,7 +308,11 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    public void CloseActivePane() => ActiveTab?.ClosePane(ActiveTab.ActivePaneId);
+    public void CloseActivePane()
+    {
+        if (!ActiveTabIsTerminal) return;
+        ActiveTab!.ClosePane(ActiveTab.ActivePaneId);
+    }
 
     // ── Macro ────────────────────────────────────────────────────────────────
 
@@ -312,13 +408,8 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
             {
                 new()
                 {
-                    ActiveTab = ActiveTab is null ? 0 : Tabs.IndexOf(ActiveTab),
-                    Tabs      = Tabs.Select(t => new TabLayout
-                    {
-                        Id           = t.Id,
-                        Title        = t.Title,
-                        RootPaneJson = KMux.Layout.LayoutSerializer.Serialize(t.LayoutRoot)
-                    }).ToList()
+                    ActiveTab = ActiveTab is null ? 0 : NonDashboardTabs.IndexOf(ActiveTab),
+                    Tabs      = NonDashboardTabs.Select(SerializeTab).ToList()
                 }
             }
         };

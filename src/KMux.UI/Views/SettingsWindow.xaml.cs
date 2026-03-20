@@ -46,12 +46,13 @@ public partial class SettingsWindow : Window
 
     private void LoadCurrentSettings()
     {
-        ThemeList.SelectedItem       = _themeItems.FirstOrDefault(t => t.Name == _draft.ThemeName)
-                                    ?? _themeItems.FirstOrDefault();
-        FontFamilyCombo.SelectedItem = FontFamilies.FirstOrDefault(f => f == _draft.TerminalFontFamily)
-                                    ?? FontFamilies[0];
-        FontSizeCombo.SelectedItem   = FontSizes.Contains(_draft.TerminalFontSize)
-                                    ? _draft.TerminalFontSize : 14;
+        ThemeList.SelectedItem         = _themeItems.FirstOrDefault(t => t.Name == _draft.ThemeName)
+                                      ?? _themeItems.FirstOrDefault();
+        FontFamilyCombo.SelectedItem   = FontFamilies.FirstOrDefault(f => f == _draft.TerminalFontFamily)
+                                      ?? FontFamilies[0];
+        FontSizeCombo.SelectedItem     = FontSizes.Contains(_draft.TerminalFontSize)
+                                      ? _draft.TerminalFontSize : 14;
+        RestoreOnStartupCheck.IsChecked = _draft.RestoreOnStartup;
         UpdatePreview();
     }
 
@@ -69,6 +70,9 @@ public partial class SettingsWindow : Window
     {
         if (FontSizeCombo.SelectedItem is int size) { _draft.TerminalFontSize = size; UpdatePreview(); }
     }
+
+    private void RestoreOnStartupCheck_Changed(object sender, System.Windows.RoutedEventArgs e)
+        => _draft.RestoreOnStartup = RestoreOnStartupCheck.IsChecked == true;
 
     private void ApplyBtn_Click(object sender, RoutedEventArgs e)
         => _ = AppSettingsService.ApplyAndSaveAsync(CloneSettings(_draft));
@@ -94,5 +98,6 @@ public partial class SettingsWindow : Window
         ThemeName          = src.ThemeName,
         TerminalFontFamily = src.TerminalFontFamily,
         TerminalFontSize   = src.TerminalFontSize,
+        RestoreOnStartup   = src.RestoreOnStartup,
     };
 }
