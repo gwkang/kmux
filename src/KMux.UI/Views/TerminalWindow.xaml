@@ -169,12 +169,30 @@
                     </ControlTemplate>
                   </Button.Template>
                   <StackPanel Orientation="Horizontal">
-                    <!-- Active indicator dot (accent) -->
+                    <!-- Dashboard icon — only shown for the dashboard tab -->
+                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="11"
+                               Text="&#xF246;" Margin="0,0,5,0" VerticalAlignment="Center">
+                      <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                          <Setter Property="Visibility" Value="Collapsed"/>
+                          <Setter Property="Foreground" Value="{DynamicResource KmuxBrushAccent}"/>
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsDashboard}" Value="True">
+                              <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </TextBlock.Style>
+                    </TextBlock>
+                    <!-- Active indicator dot (accent) — hidden for dashboard -->
                     <Ellipse Width="6" Height="6" Margin="0,0,2,0">
                       <Ellipse.Style>
                         <Style TargetType="Ellipse">
                           <Setter Property="Fill" Value="Transparent"/>
                           <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsDashboard}" Value="True">
+                              <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding IsActive}" Value="True">
                               <Setter Property="Fill" Value="{DynamicResource KmuxBrushAccent}"/>
                             </DataTrigger>
@@ -182,13 +200,16 @@
                         </Style>
                       </Ellipse.Style>
                     </Ellipse>
-                    <!-- Claude busy indicator: square shape (distinct from circle = different meaning), pulsing -->
+                    <!-- Claude busy indicator: square shape (distinct from circle = different meaning), pulsing — hidden for dashboard -->
                     <Rectangle Width="6" Height="6" Margin="0,0,5,0" Opacity="0"
                                RadiusX="1" RadiusY="1">
                       <Rectangle.Style>
                         <Style TargetType="Rectangle">
                           <Setter Property="Fill" Value="{DynamicResource KmuxBrushGreen}"/>
                           <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsDashboard}" Value="True">
+                              <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding IsBusy}" Value="True">
                               <DataTrigger.EnterActions>
                                 <BeginStoryboard Name="BusyPulse">
@@ -224,6 +245,9 @@
                         <Style TargetType="TextBlock">
                           <Setter Property="Foreground" Value="{DynamicResource KmuxBrushSubtext1}"/>
                           <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsDashboard}" Value="True">
+                              <Setter Property="Foreground" Value="{DynamicResource KmuxBrushAccent}"/>
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding IsActive}" Value="True">
                               <Setter Property="Foreground" Value="{DynamicResource KmuxBrushText}"/>
                             </DataTrigger>

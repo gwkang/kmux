@@ -21,12 +21,15 @@ public partial class TabViewModel : ObservableObject, IDisposable
     [ObservableProperty] private Guid   _activePaneId;
 
     private readonly Dictionary<Guid, PaneViewModel> _panes = new();
+    private readonly ObservableCollection<PaneViewModel> _allPanes = new();
+    public ReadOnlyObservableCollection<PaneViewModel> AllPanes { get; }
     private readonly ShellProfile _defaultProfile;
     private readonly MacroRecorder _recorder;
     private readonly LayoutTree _layoutTree;
 
     public TabViewModel(ShellProfile profile, MacroRecorder recorder)
     {
+        AllPanes        = new ReadOnlyObservableCollection<PaneViewModel>(_allPanes);
         _defaultProfile = profile;
         _recorder       = recorder;
         _layoutTree     = new LayoutTree();
@@ -37,6 +40,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         paneProfile.EnvironmentVariables["KMUX_PANE_ID"] = firstLeaf.PaneId.ToString();
         var pane         = new PaneViewModel(firstLeaf.PaneId, paneProfile, recorder);
         _panes[firstLeaf.PaneId] = pane;
+        _allPanes.Add(pane);
         SubscribePane(pane);
         ActivePaneId = firstLeaf.PaneId;
         LayoutRoot   = _layoutTree.Root;
@@ -45,6 +49,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
     // Dashboard-only constructor — no panes, no terminal processes
     private TabViewModel(bool isDashboard)
     {
+        AllPanes        = new ReadOnlyObservableCollection<PaneViewModel>(_allPanes);
         IsDashboard     = true;
         _title          = "Dashboard";
         _defaultProfile = ShellProfile.Cmd;
@@ -62,6 +67,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
                         IReadOnlyDictionary<Guid, KMux.Core.Models.PaneInfo> paneInfos,
                         Func<KMux.Core.Models.PaneInfo, ShellProfile> profileFactory)
     {
+        AllPanes        = new ReadOnlyObservableCollection<PaneViewModel>(_allPanes);
         _defaultProfile = defaultProfile;
         _recorder       = recorder;
         _layoutTree     = new LayoutTree(layoutRoot);
@@ -78,6 +84,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
             profile.EnvironmentVariables["KMUX_PANE_ID"] = paneId.ToString();
             var pane = new PaneViewModel(paneId, profile, recorder);
             _panes[paneId] = pane;
+            _allPanes.Add(pane);
             SubscribePane(pane);
         }
 
@@ -93,8 +100,6 @@ public partial class TabViewModel : ObservableObject, IDisposable
 
     partial void OnActivePaneIdChanged(Guid value) => OnPropertyChanged(nameof(ToolTipText));
 
-    public IEnumerable<PaneViewModel> AllPanes => _panes.Values;
-
     public void SplitPane(Guid paneId, SplitDirection dir)
     {
         var newId = _layoutTree.SplitPane(paneId, dir);
@@ -105,10 +110,10 @@ public partial class TabViewModel : ObservableObject, IDisposable
         profile.EnvironmentVariables["KMUX_PANE_ID"] = newId.ToString();
         var pane    = new PaneViewModel(newId, profile, _recorder);
         _panes[newId] = pane;
+        _allPanes.Add(pane);
         SubscribePane(pane);
         ActivePaneId  = newId;
         LayoutRoot    = _layoutTree.Root;
-        OnPropertyChanged(nameof(AllPanes));
         _recorder.RecordNewPane(dir);
     }
 
@@ -116,9 +121,11 @@ public partial class TabViewModel : ObservableObject, IDisposable
     {
         if (_panes.Count <= 1) return;   // don't close last pane in tab
 
-        UnsubscribePane(_panes[paneId]);
-        _panes[paneId].Dispose();
+        var pane = _panes[paneId];
+        UnsubscribePane(pane);
+        pane.Dispose();
         _panes.Remove(paneId);
+        _allPanes.Remove(pane);
         _layoutTree.ClosePane(paneId);
 
         if (ActivePaneId == paneId)
@@ -126,7 +133,6 @@ public partial class TabViewModel : ObservableObject, IDisposable
 
         RefreshIsBusy();
         LayoutRoot = _layoutTree.Root;
-        OnPropertyChanged(nameof(AllPanes));
     }
 
     public void UpdateSplitRatio(Guid paneId, double ratio)
@@ -178,5 +184,6 @@ public partial class TabViewModel : ObservableObject, IDisposable
         Disposing?.Invoke(this, EventArgs.Empty);
         foreach (var p in _panes.Values) { UnsubscribePane(p); p.Dispose(); }
         _panes.Clear();
+        _allPanes.Clear();
     }
 }

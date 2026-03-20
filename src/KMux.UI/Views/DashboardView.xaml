@@ -4,15 +4,31 @@
              Background="{DynamicResource KmuxBrushBase}">
 
   <UserControl.Resources>
-    <!-- Transparent button wrapper for tab cards -->
+    <!-- Transparent card button — hover/press delegated to inner Border via RelativeSource -->
     <Style x:Key="CardButtonStyle" TargetType="Button">
       <Setter Property="Background"               Value="Transparent"/>
       <Setter Property="BorderThickness"          Value="0"/>
       <Setter Property="Padding"                  Value="0"/>
       <Setter Property="Cursor"                   Value="Hand"/>
-      <Setter Property="FocusVisualStyle"         Value="{x:Null}"/>
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
       <Setter Property="VerticalContentAlignment"   Value="Stretch"/>
+      <!-- Keyboard focus: dashed accent outline instead of the default ugly rectangle -->
+      <Setter Property="FocusVisualStyle">
+        <Setter.Value>
+          <Style>
+            <Setter Property="Control.Template">
+              <Setter.Value>
+                <ControlTemplate>
+                  <Rectangle Margin="2" StrokeThickness="1.5"
+                             Stroke="{DynamicResource KmuxBrushAccent}"
+                             RadiusX="7" RadiusY="7"
+                             StrokeDashArray="3 2" Opacity="0.8"/>
+                </ControlTemplate>
+              </Setter.Value>
+            </Setter>
+          </Style>
+        </Setter.Value>
+      </Setter>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
@@ -27,36 +43,78 @@
                 VerticalScrollBarVisibility="Auto">
     <StackPanel>
 
-      <!-- Header -->
-      <TextBlock Text="Dashboard"
-                 Foreground="{DynamicResource KmuxBrushSubtext0}"
-                 FontSize="11" FontWeight="SemiBold"
-                 Margin="20,16,20,12"
-                 TextOptions.TextFormattingMode="Display"/>
+      <!-- ── Header: tab count (left) + status legend (right) ────────────── -->
+      <Grid Margin="20,14,20,10">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock FontSize="11"
+                     Foreground="{DynamicResource KmuxBrushSubtext0}"
+                     VerticalAlignment="Center">
+            <Run Text="{Binding NonDashboardTabs.Count, Mode=OneWay}"/>
+            <Run Text="개 탭"/>
+          </TextBlock>
+        </StackPanel>
 
-      <!-- Tab cards wrap panel -->
+        <!-- Legend: explains what each dot color means -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+          <Ellipse Width="7" Height="7" Fill="{DynamicResource KmuxBrushGreen}"
+                   VerticalAlignment="Center" Margin="0,0,4,0"/>
+          <TextBlock Text="작업중" FontSize="10"
+                     Foreground="{DynamicResource KmuxBrushSubtext0}"
+                     VerticalAlignment="Center" Margin="0,0,14,0"/>
+          <Ellipse Width="7" Height="7" Fill="{DynamicResource KmuxBrushAccent}"
+                   VerticalAlignment="Center" Margin="0,0,4,0"/>
+          <TextBlock Text="대기중" FontSize="10"
+                     Foreground="{DynamicResource KmuxBrushSubtext0}"
+                     VerticalAlignment="Center" Margin="0,0,14,0"/>
+          <Ellipse Width="7" Height="7" Fill="{DynamicResource KmuxBrushOverlay0}"
+                   VerticalAlignment="Center" Margin="0,0,4,0"/>
+          <TextBlock Text="유휴" FontSize="10"
+                     Foreground="{DynamicResource KmuxBrushSubtext0}"
+                     VerticalAlignment="Center"/>
+        </StackPanel>
+      </Grid>
+
+      <!-- Thin divider below header -->
+      <Rectangle Height="1" Fill="{DynamicResource KmuxBrushSurface1}"
+                 Margin="20,0,20,12"/>
+
+      <!-- ── Tab cards ──────────────────────────────────────────────────── -->
       <ItemsControl ItemsSource="{Binding NonDashboardTabs}" Margin="14,0,14,16">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
+            <!-- Fixed-width cards so WrapPanel rows stay horizontally aligned -->
             <WrapPanel Orientation="Horizontal"/>
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate>
-            <!-- Clickable card → switch to that tab -->
-            <Button Style="{StaticResource CardButtonStyle}"
-                    Margin="6"
+            <Button Width="240" Margin="6"
+                    Style="{StaticResource CardButtonStyle}"
+                    AutomationProperties.Name="{Binding Title}"
                     Command="{Binding DataContext.ActivateTabCommand,
                               RelativeSource={RelativeSource AncestorType=UserControl}}"
                     CommandParameter="{Binding}">
-              <Border MinWidth="210" MaxWidth="300"
-                      CornerRadius="6">
+              <Border CornerRadius="6">
                 <Border.Style>
                   <Style TargetType="Border">
-                    <Setter Property="Background"    Value="{DynamicResource KmuxBrushSurface0}"/>
+                    <Setter Property="Background"      Value="{DynamicResource KmuxBrushSurface0}"/>
                     <Setter Property="BorderThickness" Value="1"/>
-                    <Setter Property="BorderBrush"   Value="{DynamicResource KmuxBrushSurface1}"/>
+                    <Setter Property="BorderBrush"     Value="{DynamicResource KmuxBrushSurface1}"/>
                     <Style.Triggers>
+                      <!-- Hover: brighter body + brighter border -->
+                      <DataTrigger Binding="{Binding IsMouseOver,
+                                   RelativeSource={RelativeSource AncestorType=Button}}"
+                                   Value="True">
+                        <Setter Property="Background"  Value="{DynamicResource KmuxBrushSurface1}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource KmuxBrushOverlay0}"/>
+                      </DataTrigger>
+                      <!-- Press: dim slightly -->
+                      <DataTrigger Binding="{Binding IsPressed,
+                                   RelativeSource={RelativeSource AncestorType=Button}}"
+                                   Value="True">
+                        <Setter Property="Opacity" Value="0.78"/>
+                      </DataTrigger>
+                      <!-- Active tab: accent border (overrides hover border) -->
                       <DataTrigger Binding="{Binding IsActive}" Value="True">
                         <Setter Property="BorderBrush" Value="{DynamicResource KmuxBrushAccent}"/>
                       </DataTrigger>
@@ -66,7 +124,7 @@
 
                 <StackPanel>
                   <!-- Card header -->
-                  <Border CornerRadius="5,5,0,0" Padding="10,8,10,8">
+                  <Border CornerRadius="5,5,0,0" Padding="10,8">
                     <Border.Style>
                       <Style TargetType="Border">
                         <Setter Property="Background" Value="{DynamicResource KmuxBrushSurface1}"/>
@@ -74,15 +132,18 @@
                     </Border.Style>
                     <Grid>
                       <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- Busy indicator square -->
-                        <Rectangle Width="6" Height="6" RadiusX="1" RadiusY="1"
-                                   Margin="0,0,7,0" VerticalAlignment="Center">
+                        <!-- Busy indicator square: only shown when tab has active Claude work -->
+                        <Rectangle RadiusX="1" RadiusY="1" Width="7" Height="7"
+                                   Margin="0,0,7,0" VerticalAlignment="Center"
+                                   ToolTip="Claude Code 작업 중">
                           <Rectangle.Style>
                             <Style TargetType="Rectangle">
-                              <Setter Property="Fill" Value="Transparent"/>
+                              <Setter Property="Fill"       Value="Transparent"/>
+                              <Setter Property="Visibility" Value="Collapsed"/>
                               <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsBusy}" Value="True">
-                                  <Setter Property="Fill" Value="{DynamicResource KmuxBrushGreen}"/>
+                                  <Setter Property="Fill"       Value="{DynamicResource KmuxBrushGreen}"/>
+                                  <Setter Property="Visibility" Value="Visible"/>
                                 </DataTrigger>
                               </Style.Triggers>
                             </Style>
@@ -93,9 +154,10 @@
                                    FontWeight="SemiBold" FontSize="12"
                                    VerticalAlignment="Center"/>
                       </StackPanel>
-                      <!-- Active indicator dot -->
-                      <Ellipse Width="6" Height="6"
-                               HorizontalAlignment="Right" VerticalAlignment="Center">
+                      <!-- Active indicator dot (right edge) -->
+                      <Ellipse Width="7" Height="7"
+                               HorizontalAlignment="Right" VerticalAlignment="Center"
+                               ToolTip="현재 활성 탭">
                         <Ellipse.Style>
                           <Style TargetType="Ellipse">
                             <Setter Property="Fill" Value="Transparent"/>
@@ -110,53 +172,66 @@
                     </Grid>
                   </Border>
 
-                  <!-- Pane rows -->
-                  <ItemsControl ItemsSource="{Binding AllPanes}" Margin="0,4,0,6">
+                  <!-- Pane rows — min-height keeps single-pane cards from being too thin -->
+                  <ItemsControl ItemsSource="{Binding AllPanes}" MinHeight="32" Margin="0,4,0,6">
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
-                        <Grid Margin="10,3">
-                          <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                          </Grid.ColumnDefinitions>
+                        <StackPanel Margin="10,3,10,3">
+                          <!-- Row 1: status dot + breadcrumb path (tooltip = full path) -->
+                          <Grid>
+                            <Grid.ColumnDefinitions>
+                              <ColumnDefinition Width="Auto"/>
+                              <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                          <!-- Status dot: green=busy, accent=ready, gray=idle -->
-                          <Ellipse Grid.Column="0" Width="6" Height="6"
-                                   Margin="0,0,8,0" VerticalAlignment="Center">
-                            <Ellipse.Style>
-                              <Style TargetType="Ellipse">
-                                <Setter Property="Fill" Value="{DynamicResource KmuxBrushOverlay0}"/>
+                            <Ellipse Grid.Column="0" Width="7" Height="7"
+                                     Margin="0,0,8,0" VerticalAlignment="Center">
+                              <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                  <Setter Property="Fill"    Value="{DynamicResource KmuxBrushOverlay0}"/>
+                                  <Setter Property="ToolTip" Value="유휴"/>
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsClaudeBusy}" Value="True">
+                                      <Setter Property="Fill"    Value="{DynamicResource KmuxBrushGreen}"/>
+                                      <Setter Property="ToolTip" Value="Claude Code 작업 중"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsClaudeReady}" Value="True">
+                                      <Setter Property="Fill"    Value="{DynamicResource KmuxBrushAccent}"/>
+                                      <Setter Property="ToolTip" Value="Claude Code 대기 중"/>
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                              </Ellipse.Style>
+                            </Ellipse>
+
+                            <!-- Breadcrumb shows parent/child; tooltip shows full path -->
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding BreadcrumbPath}"
+                                       ToolTip="{Binding WorkingDirectory}"
+                                       Foreground="{DynamicResource KmuxBrushSubtext1}"
+                                       FontSize="11"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center"/>
+                          </Grid>
+
+                          <!-- Row 2: Claude activity — collapsed when empty -->
+                          <TextBlock Text="{Binding ClaudeActivity}"
+                                     Foreground="{DynamicResource KmuxBrushSubtext0}"
+                                     FontSize="10" FontStyle="Italic"
+                                     Margin="15,1,0,0"
+                                     TextTrimming="CharacterEllipsis">
+                            <TextBlock.Style>
+                              <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Visible"/>
                                 <Style.Triggers>
-                                  <DataTrigger Binding="{Binding IsClaudeBusy}" Value="True">
-                                    <Setter Property="Fill" Value="{DynamicResource KmuxBrushGreen}"/>
-                                  </DataTrigger>
-                                  <DataTrigger Binding="{Binding IsClaudeReady}" Value="True">
-                                    <Setter Property="Fill" Value="{DynamicResource KmuxBrushAccent}"/>
+                                  <DataTrigger Binding="{Binding ClaudeActivity}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
                                   </DataTrigger>
                                 </Style.Triggers>
                               </Style>
-                            </Ellipse.Style>
-                          </Ellipse>
-
-                          <!-- Working directory (short name) -->
-                          <TextBlock Grid.Column="1"
-                                     Text="{Binding DisplayPath}"
-                                     Foreground="{DynamicResource KmuxBrushSubtext1}"
-                                     FontSize="11"
-                                     TextTrimming="CharacterEllipsis"
-                                     VerticalAlignment="Center"/>
-
-                          <!-- Claude activity label -->
-                          <TextBlock Grid.Column="2"
-                                     Text="{Binding ClaudeActivity}"
-                                     Foreground="{DynamicResource KmuxBrushSubtext0}"
-                                     FontSize="10"
-                                     Margin="6,0,0,0"
-                                     MaxWidth="80"
-                                     TextTrimming="CharacterEllipsis"
-                                     VerticalAlignment="Center"/>
-                        </Grid>
+                            </TextBlock.Style>
+                          </TextBlock>
+                        </StackPanel>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
@@ -167,6 +242,28 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+
+      <!-- ── Empty state (shown when no tabs are open) ─────────────────── -->
+      <StackPanel HorizontalAlignment="Center" Margin="0,60,0,0">
+        <StackPanel.Style>
+          <Style TargetType="StackPanel">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding HasNoTabs}" Value="True">
+                <Setter Property="Visibility" Value="Visible"/>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </StackPanel.Style>
+        <TextBlock Text="&#xE710;"
+                   FontFamily="Segoe MDL2 Assets" FontSize="36"
+                   Foreground="{DynamicResource KmuxBrushOverlay0}"
+                   HorizontalAlignment="Center" Margin="0,0,0,14"/>
+        <TextBlock Text="새 탭 버튼(+)으로 터미널을 시작하세요"
+                   Foreground="{DynamicResource KmuxBrushSubtext0}"
+                   FontSize="13"
+                   HorizontalAlignment="Center"/>
+      </StackPanel>
 
     </StackPanel>
   </ScrollViewer>

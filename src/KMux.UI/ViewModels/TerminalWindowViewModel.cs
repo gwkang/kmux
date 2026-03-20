@@ -78,11 +78,16 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
         _ = RefreshRecentDirectoriesAsync();
     }
 
+    public bool HasNoTabs => NonDashboardTabs.Count == 0;
+
     private void SyncNonDashboardTabs()
     {
+        var wasEmpty = NonDashboardTabs.Count == 0;
         NonDashboardTabs.Clear();
         foreach (var t in Tabs)
             if (!t.IsDashboard) NonDashboardTabs.Add(t);
+        if (wasEmpty != (NonDashboardTabs.Count == 0))
+            OnPropertyChanged(nameof(HasNoTabs));
     }
 
     private void RestoreFromLayout(KMux.Core.Models.WindowLayout layout)

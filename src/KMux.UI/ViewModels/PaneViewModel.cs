@@ -75,12 +75,37 @@ public partial class PaneViewModel : ObservableObject, IDisposable
                 () => ClaudeSessionId = e.SessionId);
     }
 
+    /// <summary>Shows the last two path segments (e.g. "kmux/src") for dashboard display.</summary>
+    public string BreadcrumbPath => _breadcrumbPath;
+    private string _breadcrumbPath = "";
+
     private void RefreshDisplayPath()
     {
         var path = Terminal.CurrentWorkingDir ?? _initialWorkingDir;
-        if (string.IsNullOrEmpty(path)) { DisplayPath = ""; return; }
+        if (string.IsNullOrEmpty(path))
+        {
+            DisplayPath = "";
+            SetBreadcrumb("");
+            return;
+        }
         var trimmed = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        DisplayPath = string.IsNullOrEmpty(trimmed) ? path : Path.GetFileName(trimmed);
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            DisplayPath = path;
+            SetBreadcrumb(path);
+            return;
+        }
+        var parts = trimmed.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                                  StringSplitOptions.RemoveEmptyEntries);
+        DisplayPath = parts[^1];
+        SetBreadcrumb(parts.Length >= 2 ? $"{parts[^2]}/{parts[^1]}" : parts[^1]);
+    }
+
+    private void SetBreadcrumb(string value)
+    {
+        if (_breadcrumbPath == value) return;
+        _breadcrumbPath = value;
+        OnPropertyChanged(nameof(BreadcrumbPath));
     }
 
     private void OnTerminalPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

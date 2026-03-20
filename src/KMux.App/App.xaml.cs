@@ -110,81 +110,88 @@ public partial class App : Application
     {
         try
         {
-            var hookScript = Path.Combine(assetsPath, "hooks", "kmux-activity-hook.sh")
-                                 .Replace('\\', '/');
-            var command = $"bash \"{hookScript}\"";
+            // Copy hook script to a stable location in the user profile.
+            // Using ~/.claude/hooks/ means the command path never changes across
+            // machines or build configurations, so we never accumulate stale entries.
+            var userClaudeDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude");
+            var hooksDir   = Path.Combine(userClaudeDir, "hooks");
+            var destScript = Path.Combine(hooksDir, "kmux-activity.sh");
 
-            var settingsPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".claude", "settings.json");
+            Directory.CreateDirectory(hooksDir);
+            File.Copy(Path.Combine(assetsPath, "hooks", "kmux-activity-hook.sh"),
+                      destScript, overwrite: true);
 
-            JsonNode root;
-            if (File.Exists(settingsPath))
-            {
-                var json = File.ReadAllText(settingsPath);
-                root = JsonNode.Parse(json) ?? new JsonObject();
-            }
-            else
-            {
-                root = new JsonObject();
-                Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
-            }
+            var command = $"bash \"{destScript.Replace('\\', '/')}\"";
+
+            // Load or create ~/.claude/settings.json
+            var settingsPath = Path.Combine(userClaudeDir, "settings.json");
+            JsonNode root = File.Exists(settingsPath)
+                ? JsonNode.Parse(File.ReadAllText(settingsPath)) ?? new JsonObject()
+                : new JsonObject();
 
             var hooks   = (root["hooks"] as JsonObject) ?? new JsonObject();
             bool changed = false;
 
-            foreach (var eventName in new[] { "PreToolUse", "PostToolUse", "PostToolUseFailure" })
+            foreach (var ev in new[] { "PreToolUse", "PostToolUse" })
             {
-                if (!IsHookRegistered(hooks, eventName, command))
-                {
-                    AddHook(hooks, eventName, command);
+                if (SyncKmuxHook(hooks, ev, command))
                     changed = true;
-                }
             }
 
             if (changed)
             {
                 root["hooks"] = hooks;
-                File.WriteAllText(settingsPath, root.ToJsonString(
-                    new JsonSerializerOptions { WriteIndented = true }));
+                File.WriteAllText(settingsPath,
+                    root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
             }
         }
         catch { /* Don't crash startup if hook registration fails */ }
     }
 
-    private static bool IsHookRegistered(JsonObject hooks, string eventName, string command)
-    {
-        if (hooks[eventName] is not JsonArray eventHooks) return false;
-        foreach (var item in eventHooks)
-        {
-            if (item?["hooks"] is not JsonArray subHooks) continue;
-            foreach (var hook in subHooks)
-            {
-                if (hook?["command"]?.GetValue<string>() == command) return true;
-            }
-        }
-        return false;
-    }
-
-    private static void AddHook(JsonObject hooks, string eventName, string command)
+    /// <summary>
+    /// Ensures exactly one KMux hook entry exists for <paramref name="eventName"/>
+    /// with <paramref name="command"/>, removing any stale KMux entries first.
+    /// Returns true if settings.json was modified.
+    /// </summary>
+    private static bool SyncKmuxHook(JsonObject hooks, string eventName, string command)
     {
         if (hooks[eventName] is not JsonArray eventHooks)
         {
             eventHooks = new JsonArray();
             hooks[eventName] = eventHooks;
         }
-        eventHooks.Add(new JsonObject
+
+        // Remove stale KMux hook entries (old paths from previous installs/builds)
+        var stale = eventHooks
+            .Where(item => item?["hooks"] is JsonArray sub &&
+                           sub.Any(h => h?["command"]?.GetValue<string>()
+                                         ?.Contains("kmux-activity") == true &&
+                                        h?["command"]?.GetValue<string>() != command))
+            .ToList();
+
+        bool changed = stale.Count > 0;
+        foreach (var item in stale) eventHooks.Remove(item);
+
+        // Add if not already present
+        bool registered = eventHooks.Any(item =>
+            item?["hooks"] is JsonArray sub &&
+            sub.Any(h => h?["command"]?.GetValue<string>() == command));
+
+        if (!registered)
         {
-            ["matcher"] = "",
-            ["hooks"]   = new JsonArray
+            eventHooks.Add(new JsonObject
             {
-                new JsonObject
+                ["matcher"] = "",
+                ["hooks"]   = new JsonArray
                 {
-                    ["type"]    = "command",
-                    ["command"] = command
+                    new JsonObject { ["type"] = "command", ["command"] = command }
                 }
-            }
-        });
+            });
+            changed = true;
+        }
+
+        return changed;
     }
 }
 

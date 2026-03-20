@@ -33,7 +33,7 @@ case "$EVENT" in
       *)      echo "$TOOL" ;;
     esac > "$STATUS_DIR/$PANE_ID.txt"
     ;;
-  PostToolUse|PostToolUseFailure)
+  PostToolUse)
     echo -n "" > "$STATUS_DIR/$PANE_ID.txt"
     ;;
 esac
