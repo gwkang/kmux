@@ -22,6 +22,7 @@ fi
 
 case "$EVENT" in
   PreToolUse)
+    echo "busy" > "$STATUS_DIR/$PANE_ID-state.txt"
     case "$TOOL" in
       Read)   FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' | xargs -r basename 2>/dev/null); echo "Reading $FILE" ;;
       Write)  FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' | xargs -r basename 2>/dev/null); echo "Writing $FILE" ;;
@@ -34,6 +35,10 @@ case "$EVENT" in
     esac > "$STATUS_DIR/$PANE_ID.txt"
     ;;
   PostToolUse)
+    echo -n "" > "$STATUS_DIR/$PANE_ID.txt"
+    ;;
+  Stop)
+    echo "ready" > "$STATUS_DIR/$PANE_ID-state.txt"
     echo -n "" > "$STATUS_DIR/$PANE_ID.txt"
     ;;
 esac

@@ -25,6 +25,7 @@ public sealed class ClaudeActivityWatcher : IDisposable
 
     public event EventHandler<(Guid PaneId, string Activity)>?  ActivityChanged;
     public event EventHandler<(Guid PaneId, string SessionId)>? SessionIdChanged;
+    public event EventHandler<(Guid PaneId, bool IsBusy)>?      StateChanged;
 
     private ClaudeActivityWatcher()
     {
@@ -58,6 +59,14 @@ public sealed class ClaudeActivityWatcher : IDisposable
                     _sessionIds[paneId] = id;
                 }
                 SessionIdChanged?.Invoke(this, (paneId, id));
+            }
+            else if (nameWithoutExt.EndsWith("-state", StringComparison.Ordinal))
+            {
+                // State file: {paneId}-state.txt — "busy" or "ready"
+                var guidPart = nameWithoutExt[..^"-state".Length];
+                if (!Guid.TryParse(guidPart, out var paneId)) return;
+                var state = ReadWithRetry(e.FullPath);
+                StateChanged?.Invoke(this, (paneId, state == "busy"));
             }
             else
             {

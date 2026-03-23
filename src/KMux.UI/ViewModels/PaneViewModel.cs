@@ -54,6 +54,7 @@ public partial class PaneViewModel : ObservableObject, IDisposable
 
         ClaudeActivityWatcher.Instance.ActivityChanged  += OnActivityChanged;
         ClaudeActivityWatcher.Instance.SessionIdChanged += OnSessionIdChanged;
+        ClaudeActivityWatcher.Instance.StateChanged     += OnStateChanged;
 
         var existingId = ClaudeActivityWatcher.Instance.GetSessionId(paneId);
         if (!string.IsNullOrEmpty(existingId)) _claudeSessionId = existingId;
@@ -73,6 +74,13 @@ public partial class PaneViewModel : ObservableObject, IDisposable
         if (e.PaneId == PaneId)
             System.Windows.Application.Current?.Dispatcher.InvokeAsync(
                 () => ClaudeSessionId = e.SessionId);
+    }
+
+    private void OnStateChanged(object? sender, (Guid PaneId, bool IsBusy) e)
+    {
+        if (e.PaneId == PaneId)
+            System.Windows.Application.Current?.Dispatcher.InvokeAsync(
+                () => Terminal.SetClaudeState(e.IsBusy));
     }
 
     /// <summary>Shows the last two path segments (e.g. "kmux/src") for dashboard display.</summary>
@@ -127,6 +135,7 @@ public partial class PaneViewModel : ObservableObject, IDisposable
     {
         ClaudeActivityWatcher.Instance.ActivityChanged  -= OnActivityChanged;
         ClaudeActivityWatcher.Instance.SessionIdChanged -= OnSessionIdChanged;
+        ClaudeActivityWatcher.Instance.StateChanged     -= OnStateChanged;
         Terminal.PropertyChanged -= OnTerminalPropertyChanged;
         Terminal.Dispose();
     }

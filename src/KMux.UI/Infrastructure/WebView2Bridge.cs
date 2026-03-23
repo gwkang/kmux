@@ -158,6 +158,14 @@ public class WebView2Bridge : IDisposable
                     var title = root.GetProperty("data").GetString() ?? "Shell";
                     _dispatcher.InvokeAsync(() => _vm.Title = title);
                     break;
+                case "paste":
+                    _dispatcher.InvokeAsync(() =>
+                    {
+                        var text = System.Windows.Clipboard.GetText();
+                        if (!string.IsNullOrEmpty(text))
+                            _vm.HandleInput(text);
+                    });
+                    break;
                 case "kmux_prefix":
                     KmuxKeyPressed?.Invoke(Key.B, ModifierKeys.Control);
                     break;

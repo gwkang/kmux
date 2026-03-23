@@ -17,6 +17,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _title = "Shell";
     [ObservableProperty] private bool   _isActive;
     [ObservableProperty] private bool   _isBusy;
+    [ObservableProperty] private bool   _isClaudeBusy;
     [ObservableProperty] private LayoutNode _layoutRoot;
     [ObservableProperty] private Guid   _activePaneId;
 
@@ -165,7 +166,8 @@ public partial class TabViewModel : ObservableObject, IDisposable
 
     private void OnPanePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(PaneViewModel.IsActive))
+        if (e.PropertyName is nameof(PaneViewModel.IsActive)
+                           or nameof(PaneViewModel.IsClaudeBusy))
             RefreshIsBusy();
     }
 
@@ -175,7 +177,11 @@ public partial class TabViewModel : ObservableObject, IDisposable
         System.Windows.Application.Current?.Dispatcher.InvokeAsync(() => ClosePane(pane.PaneId));
     }
 
-    private void RefreshIsBusy() => IsBusy = _panes.Values.Any(p => p.IsActive);
+    private void RefreshIsBusy()
+    {
+        IsBusy       = _panes.Values.Any(p => p.IsActive);
+        IsClaudeBusy = _panes.Values.Any(p => p.IsClaudeBusy);
+    }
 
     public event EventHandler? Disposing;
 

@@ -53,6 +53,7 @@ public partial class App : Application
             DataContext = vm,
         };
 
+        win.Closing += (_, _) => SaveWorkspace();
         win.Show();
     }
 
@@ -92,6 +93,7 @@ public partial class App : Application
         {
             var vm  = new TerminalWindowViewModel(profile: defaultProfile, restore: winLayout);
             var win = new TerminalWindow { AssetsPath = assetsPath, DataContext = vm };
+            win.Closing += (_, _) => SaveWorkspace();
 
             if (winLayout.Width > 100 && winLayout.Height > 100)
             {
@@ -133,7 +135,7 @@ public partial class App : Application
             var hooks   = (root["hooks"] as JsonObject) ?? new JsonObject();
             bool changed = false;
 
-            foreach (var ev in new[] { "PreToolUse", "PostToolUse" })
+            foreach (var ev in new[] { "PreToolUse", "PostToolUse", "Stop" })
             {
                 if (SyncKmuxHook(hooks, ev, command))
                     changed = true;

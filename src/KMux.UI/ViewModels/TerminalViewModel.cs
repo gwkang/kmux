@@ -66,7 +66,7 @@ public partial class TerminalViewModel : ObservableObject, IDisposable
         _idleTimer.Elapsed += (_, _) =>
             System.Windows.Application.Current?.Dispatcher.InvokeAsync(() => IsActive = false);
 
-        _claudeIdleTimer = new System.Timers.Timer(8000) { AutoReset = false };
+        _claudeIdleTimer = new System.Timers.Timer(30_000) { AutoReset = false };
         _claudeIdleTimer.Elapsed += (_, _) =>
             System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
             {
@@ -139,6 +139,19 @@ public partial class TerminalViewModel : ObservableObject, IDisposable
             System.Windows.Application.Current?.Dispatcher.InvokeAsync(() => IsActive = true);
         _idleTimer.Stop();
         _idleTimer.Start();
+    }
+
+    /// <summary>
+    /// Called by <see cref="PaneViewModel"/> when a Claude Code hook reports a definitive state.
+    /// Overrides the spinner-based heuristic and resets the idle fallback timer.
+    /// Must be called on the UI thread.
+    /// </summary>
+    public void SetClaudeState(bool busy)
+    {
+        _claudeIdleTimer.Stop();
+        IsClaudeBusy  = busy;
+        IsClaudeReady = !busy;
+        if (busy) _claudeIdleTimer.Start(); // fallback: clear busy if Stop hook never fires
     }
 
     public event EventHandler? ProcessExited;
