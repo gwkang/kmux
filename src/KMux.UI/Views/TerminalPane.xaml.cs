@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using KMux.UI.Infrastructure;
@@ -81,7 +82,8 @@ public partial class TerminalPane : UserControl, IDisposable
             });
         }
         else if (e.PropertyName == nameof(PaneViewModel.DisplayPath)
-              || e.PropertyName == nameof(PaneViewModel.ClaudeActivity))
+              || e.PropertyName == nameof(PaneViewModel.ClaudeActivity)
+              || e.PropertyName == nameof(PaneViewModel.PaneTitle))
         {
             Dispatcher.InvokeAsync(UpdateHeader);
         }
@@ -89,8 +91,50 @@ public partial class TerminalPane : UserControl, IDisposable
 
     private void UpdateHeader()
     {
-        PathText.Text     = ViewModel?.DisplayPath    ?? "";
+        PathText.Text     = !string.IsNullOrEmpty(ViewModel?.PaneTitle)
+                            ? ViewModel.PaneTitle
+                            : ViewModel?.DisplayPath ?? "";
         ActivityText.Text = ViewModel?.ClaudeActivity ?? "";
+    }
+
+    private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2) BeginPaneRename();
+    }
+
+    private void BeginPaneRename()
+    {
+        if (ViewModel is null) return;
+        PaneTitleEdit.Text = string.IsNullOrEmpty(ViewModel.PaneTitle)
+            ? ViewModel.DisplayPath
+            : ViewModel.PaneTitle;
+        HeaderDisplay.Visibility = Visibility.Collapsed;
+        PaneTitleEdit.Visibility = Visibility.Visible;
+        PaneTitleEdit.SelectAll();
+        PaneTitleEdit.Focus();
+    }
+
+    private void CommitPaneRename()
+    {
+        if (ViewModel is null) return;
+        PaneTitleEdit.Visibility = Visibility.Collapsed;
+        HeaderDisplay.Visibility = Visibility.Visible;
+        ViewModel.PaneTitle = PaneTitleEdit.Text.Trim();
+        UpdateHeader();
+    }
+
+    private void PaneTitleEdit_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)  { CommitPaneRename(); e.Handled = true; }
+        if (e.Key == Key.Escape) { CancelPaneRename(); e.Handled = true; }
+    }
+
+    private void PaneTitleEdit_LostFocus(object sender, RoutedEventArgs e) => CommitPaneRename();
+
+    private void CancelPaneRename()
+    {
+        PaneTitleEdit.Visibility = Visibility.Collapsed;
+        HeaderDisplay.Visibility = Visibility.Visible;
     }
 
     private static readonly SolidColorBrush ActivityBarActiveBrush;
@@ -187,9 +231,19 @@ public partial class TerminalPane : UserControl, IDisposable
         _bridge.ShowPaneContextMenu = () =>
         {
             if (Window.GetWindow(this) is TerminalWindow win)
-                win.ShowPaneContextMenu(this);
+                win.ShowPaneContextMenu(this, _bridge.GetSelectionAsync, _bridge.Paste);
         };
-        await _bridge.InitializeAsync(AssetsPath);
+        try
+        {
+            await _bridge.InitializeAsync(AssetsPath);
+        }
+        catch
+        {
+            // Visual tree was removed mid-init (e.g. user switched to dashboard before
+            // WebView2 finished). Reset so Loaded can retry when the pane re-enters the tree.
+            _bridge.Dispose();
+            _bridge = null;
+        }
     }
 
     public void Dispose()

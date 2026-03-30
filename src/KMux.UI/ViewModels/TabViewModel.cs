@@ -16,6 +16,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] private string _title = "Shell";
     [ObservableProperty] private bool   _isActive;
+    [ObservableProperty] private bool   _isRenaming;
     [ObservableProperty] private bool   _isBusy;
     [ObservableProperty] private bool   _isClaudeBusy;
     [ObservableProperty] private LayoutNode _layoutRoot;

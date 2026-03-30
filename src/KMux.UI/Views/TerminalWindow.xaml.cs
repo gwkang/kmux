@@ -31,7 +31,10 @@ public partial class TerminalWindow : Window
         DataContextChanged += (_, _) =>
         {
             if (DataContext is TerminalWindowViewModel vm)
-                vm.WindowCloseRequested += (_, _) => Close();
+            {
+                vm.WindowCloseRequested  += (_, _) => Close();
+                vm.HelpRequested         += (_, _) => OpenHelpWindow();
+            }
         };
     }
 
@@ -41,6 +44,48 @@ public partial class TerminalWindow : Window
     {
         if (sender is System.Windows.Controls.Button { Tag: TabViewModel tab } && VM is not null)
             VM.ActivateTabCommand.Execute(tab);
+    }
+
+    // ── Tab rename ───────────────────────────────────────────────────────────
+
+    private void TabTitle_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2 &&
+            (sender as FrameworkElement)?.DataContext is TabViewModel { IsDashboard: false } tab)
+        {
+            tab.IsRenaming = true;
+            e.Handled = true;
+        }
+    }
+
+    private void TabTitleEdit_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if ((bool)e.NewValue && sender is TextBox tb && tb.DataContext is TabViewModel tab)
+        {
+            tb.Text = tab.Title;
+            tb.SelectAll();
+            tb.Focus();
+        }
+    }
+
+    private void TabTitleEdit_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox tb && tb.DataContext is TabViewModel tab)
+            CommitTabRename(tab, tb);
+    }
+
+    private void TabTitleEdit_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox tb || tb.DataContext is not TabViewModel tab) return;
+        if (e.Key == Key.Enter)  { CommitTabRename(tab, tb); e.Handled = true; }
+        if (e.Key == Key.Escape) { tab.IsRenaming = false;    e.Handled = true; }
+    }
+
+    private static void CommitTabRename(TabViewModel tab, TextBox tb)
+    {
+        tab.IsRenaming = false;
+        if (!string.IsNullOrWhiteSpace(tb.Text))
+            tab.Title = tb.Text.Trim();
     }
 
     private void CloseTabButton_Click(object sender, RoutedEventArgs e)
@@ -79,6 +124,14 @@ public partial class TerminalWindow : Window
     private void MacroButton_Click(object sender, RoutedEventArgs e)
     {
         var dlg = new MacroManagerWindow { Owner = this };
+        dlg.ShowDialog();
+    }
+
+    private void HelpButton_Click(object sender, RoutedEventArgs e) => OpenHelpWindow();
+
+    private void OpenHelpWindow()
+    {
+        var dlg = new KeybindingsHelpWindow { Owner = this };
         dlg.ShowDialog();
     }
 
@@ -125,9 +178,9 @@ public partial class TerminalWindow : Window
         var currentDir = activePane?.WorkingDirectory;
 
         var list = recentDirs.ToList();
-        if (!string.IsNullOrEmpty(currentDir) &&
-            (list.Count == 0 || !string.Equals(list[0], currentDir, StringComparison.OrdinalIgnoreCase)))
+        if (!string.IsNullOrEmpty(currentDir))
         {
+            list.RemoveAll(d => string.Equals(d, currentDir, StringComparison.OrdinalIgnoreCase));
             list.Insert(0, currentDir);
         }
         return list;
@@ -178,13 +231,33 @@ public partial class TerminalWindow : Window
         win.Show();
     }
 
-    /// <summary>Shows a KMux context menu over the given terminal pane with folder-picker options.</summary>
-    public void ShowPaneContextMenu(FrameworkElement target)
+    /// <summary>Shows a KMux context menu over the given terminal pane with copy/paste and folder-picker options.</summary>
+    public void ShowPaneContextMenu(FrameworkElement target, Func<Task<string>> getSelection, Action paste)
     {
         if (VM is null) return;
         var dirs = GetDirsWithCurrent(VM.RecentDirectories).ToList();
 
         var menu = new ContextMenu();
+
+        var copyItem = new MenuItem { Header = "복사" };
+        copyItem.Click += async (_, _) =>
+        {
+            try
+            {
+                var text = await getSelection();
+                if (!string.IsNullOrEmpty(text))
+                    System.Windows.Clipboard.SetText(text);
+            }
+            catch { /* selection unavailable or clipboard inaccessible */ }
+        };
+        menu.Items.Add(copyItem);
+
+        var pasteItem = new MenuItem { Header = "붙여넣기" };
+        pasteItem.Click += (_, _) => paste();
+        menu.Items.Add(pasteItem);
+
+        menu.Items.Add(new Separator());
+
         menu.Items.Add(BuildFolderSubmenu("Claude 탭으로 열기", dirs,
             dir => VM.NewClaudeTabCommand.Execute(dir),
             () => { if (BrowseForDirectory("Claude 탭 폴더 선택") is string d) VM.NewClaudeTabCommand.Execute(d); }));

@@ -64,7 +64,7 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
         _sessionStore   = sessionStore ?? new SessionStore();
         _recentDirStore = recentDirs   ?? new RecentDirectoryStore();
 
-        Tabs.CollectionChanged += (_, _) => SyncNonDashboardTabs();
+        Tabs.CollectionChanged += OnTabsCollectionChanged;
 
         // Dashboard tab is always first
         var dashboard = TabViewModel.CreateDashboard();
@@ -78,7 +78,25 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
         _ = RefreshRecentDirectoriesAsync();
     }
 
-    public bool HasNoTabs => NonDashboardTabs.Count == 0;
+    public bool HasNoTabs    => NonDashboardTabs.Count == 0;
+    public int  BusyTabCount => NonDashboardTabs.Count(t => t.IsClaudeBusy);
+
+    private void OnTabsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems is not null)
+            foreach (TabViewModel t in e.OldItems)
+                t.PropertyChanged -= OnAnyTabPropertyChanged;
+        if (e.NewItems is not null)
+            foreach (TabViewModel t in e.NewItems)
+                t.PropertyChanged += OnAnyTabPropertyChanged;
+        SyncNonDashboardTabs();
+    }
+
+    private void OnAnyTabPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TabViewModel.IsClaudeBusy))
+            OnPropertyChanged(nameof(BusyTabCount));
+    }
 
     private void SyncNonDashboardTabs()
     {
@@ -88,6 +106,7 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
             if (!t.IsDashboard) NonDashboardTabs.Add(t);
         if (wasEmpty != (NonDashboardTabs.Count == 0))
             OnPropertyChanged(nameof(HasNoTabs));
+        OnPropertyChanged(nameof(BusyTabCount));
     }
 
     private void RestoreFromLayout(KMux.Core.Models.WindowLayout layout)
@@ -111,6 +130,17 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
                 info => MakeRestoreProfile(info));
             tab.Title = tabLayout.Title ?? "Shell";
             Tabs.Add(tab);
+
+            // Seed session IDs from the saved layout as a fallback for the case
+            // where no hooks fired (Claude never executed a tool) before shutdown.
+            foreach (var pane in tab.AllPanes)
+            {
+                if (!paneMap.TryGetValue(pane.PaneId, out var pi)) continue;
+                if (!string.IsNullOrEmpty(pi.ClaudeSessionId) && string.IsNullOrEmpty(pane.ClaudeSessionId))
+                    pane.ClaudeSessionId = pi.ClaudeSessionId;
+                if (!string.IsNullOrEmpty(pi.PaneTitle))
+                    pane.PaneTitle = pi.PaneTitle;
+            }
 
             foreach (var pane in tabLayout.Panes.Where(p => !string.IsNullOrEmpty(p.WorkingDir)))
                 _ = AddToRecentDirsAsync(pane.WorkingDir);
@@ -143,7 +173,8 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
         {
             PaneId          = p.PaneId,
             WorkingDir      = p.WorkingDirectory,
-            ClaudeSessionId = p.ClaudeSessionId
+            ClaudeSessionId = p.ClaudeSessionId,
+            PaneTitle       = string.IsNullOrEmpty(p.PaneTitle) ? null : p.PaneTitle
         }).ToList()
     };
 
@@ -387,11 +418,13 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
             case "pane.focus.right":    MoveFocus(NavigationDirection.Right);   break;
             case "macro.manager":       MacroManagerRequested?.Invoke(this, EventArgs.Empty); break;
             case "session.manager":     SessionManagerRequested?.Invoke(this, EventArgs.Empty); break;
+            case "help.keybindings":    HelpRequested?.Invoke(this, EventArgs.Empty); break;
         }
     }
 
     public event EventHandler? MacroManagerRequested;
     public event EventHandler? SessionManagerRequested;
+    public event EventHandler? HelpRequested;
 
     private void MoveFocus(NavigationDirection dir)
     {
@@ -427,6 +460,10 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
             _subscribedTab.PropertyChanged -= OnActiveTabPropertyChanged;
         if (_subscribedPane is not null)
             _subscribedPane.PropertyChanged -= OnActivePanePropertyChanged;
-        foreach (var t in Tabs) t.Dispose();
+        foreach (var t in Tabs)
+        {
+            t.PropertyChanged -= OnAnyTabPropertyChanged;
+            t.Dispose();
+        }
     }
 }

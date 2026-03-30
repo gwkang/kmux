@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:KMux.UI.Views"
         Title="{Binding WindowTitle, FallbackValue=KMux}"
+        Icon="pack://application:,,,/KMux;component/Assets/kmux.ico"
         Width="1280" Height="800"
         MinWidth="400" MinHeight="300"
         Background="{DynamicResource KmuxBrushBase}"
@@ -239,8 +240,9 @@
                         </Style>
                       </Rectangle.Style>
                     </Rectangle>
-                    <!-- Tab title -->
-                    <TextBlock Text="{Binding Title}">
+                    <!-- Tab title: TextBlock (display) / TextBox (rename, double-click to activate) -->
+                    <TextBlock Text="{Binding Title}"
+                               PreviewMouseLeftButtonDown="TabTitle_PreviewMouseLeftButtonDown">
                       <TextBlock.Style>
                         <Style TargetType="TextBlock">
                           <Setter Property="Foreground" Value="{DynamicResource KmuxBrushSubtext1}"/>
@@ -251,10 +253,33 @@
                             <DataTrigger Binding="{Binding IsActive}" Value="True">
                               <Setter Property="Foreground" Value="{DynamicResource KmuxBrushText}"/>
                             </DataTrigger>
+                            <DataTrigger Binding="{Binding IsRenaming}" Value="True">
+                              <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
                           </Style.Triggers>
                         </Style>
                       </TextBlock.Style>
                     </TextBlock>
+                    <TextBox MinWidth="60" MaxWidth="140" FontSize="11"
+                             Background="{DynamicResource KmuxBrushSurface0}"
+                             Foreground="{DynamicResource KmuxBrushText}"
+                             CaretBrush="{DynamicResource KmuxBrushText}"
+                             BorderThickness="0" Padding="2,0"
+                             VerticalContentAlignment="Center"
+                             IsVisibleChanged="TabTitleEdit_IsVisibleChanged"
+                             LostFocus="TabTitleEdit_LostFocus"
+                             KeyDown="TabTitleEdit_KeyDown">
+                      <TextBox.Style>
+                        <Style TargetType="TextBox">
+                          <Setter Property="Visibility" Value="Collapsed"/>
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsRenaming}" Value="True">
+                              <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </TextBox.Style>
+                    </TextBox>
                   </StackPanel>
                 </Button>
 
@@ -376,7 +401,12 @@
 
         <Rectangle Style="{StaticResource ToolbarSep}"/>
 
-        <!-- Group 5: Settings -->
+        <!-- Group 5: Settings / Help -->
+        <Button Style="{StaticResource TabItemStyle}"
+                ToolTip="단축키 도움말 (Ctrl+B /)"
+                Click="HelpButton_Click">
+          <TextBlock Style="{StaticResource MdlIcon}" Text="&#xE9CE;"/>
+        </Button>
         <Button Style="{StaticResource TabItemStyle}"
                 ToolTip="Settings"
                 Click="SettingsButton_Click">

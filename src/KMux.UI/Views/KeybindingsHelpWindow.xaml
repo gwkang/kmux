@@ -1,0 +1,337 @@
+<Window x:Class="KMux.UI.Views.KeybindingsHelpWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Keyboard Shortcuts"
+        Icon="pack://application:,,,/KMux;component/Assets/kmux.ico"
+        Width="480" Height="560"
+        MinWidth="420" MinHeight="460"
+        Background="{DynamicResource KmuxBrushBase}"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip"
+        KeyDown="Window_KeyDown">
+
+  <Window.Resources>
+
+    <Style x:Key="SectionLabel" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource KmuxBrushSubtext0}"/>
+      <Setter Property="FontSize"   Value="9.5"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Margin"     Value="0,20,0,6"/>
+    </Style>
+
+    <Style x:Key="SectionRule" TargetType="Rectangle">
+      <Setter Property="Height"  Value="1"/>
+      <Setter Property="Fill"    Value="{DynamicResource KmuxBrushSurface0}"/>
+      <Setter Property="Margin"  Value="0,0,0,4"/>
+    </Style>
+
+    <!-- Key badge: pill-shaped surface chip -->
+    <Style x:Key="KeyBadge" TargetType="Border">
+      <Setter Property="Background"    Value="{DynamicResource KmuxBrushSurface0}"/>
+      <Setter Property="CornerRadius"  Value="4"/>
+      <Setter Property="Padding"       Value="6,2"/>
+      <Setter Property="Margin"        Value="0,0,3,0"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Monospace key text -->
+    <Style x:Key="KeyText" TargetType="TextBlock">
+      <Setter Property="FontFamily"        Value="Cascadia Code, Consolas, Courier New"/>
+      <Setter Property="FontSize"          Value="11"/>
+      <Setter Property="Foreground"        Value="{DynamicResource KmuxBrushAccent}"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Arrow between prefix and key -->
+    <Style x:Key="Arrow" TargetType="TextBlock">
+      <Setter Property="Text"             Value="→"/>
+      <Setter Property="FontSize"         Value="11"/>
+      <Setter Property="Foreground"       Value="{DynamicResource KmuxBrushOverlay0}"/>
+      <Setter Property="Margin"           Value="2,0,5,0"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Row description -->
+    <Style x:Key="DescText" TargetType="TextBlock">
+      <Setter Property="Foreground"        Value="{DynamicResource KmuxBrushText}"/>
+      <Setter Property="FontSize"          Value="12"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Dim description (supplementary combos) -->
+    <Style x:Key="DimDesc" TargetType="TextBlock" BasedOn="{StaticResource DescText}">
+      <Setter Property="Foreground" Value="{DynamicResource KmuxBrushSubtext1}"/>
+    </Style>
+
+    <!-- Close / action button -->
+    <Style x:Key="ActionBtn" TargetType="Button">
+      <Setter Property="Background"       Value="{DynamicResource KmuxBrushSurface0}"/>
+      <Setter Property="Foreground"       Value="{DynamicResource KmuxBrushText}"/>
+      <Setter Property="BorderThickness"  Value="0"/>
+      <Setter Property="Padding"          Value="20,7"/>
+      <Setter Property="Cursor"           Value="Hand"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                    Padding="{TemplateBinding Padding}" CornerRadius="4">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource KmuxBrushSurface1}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource KmuxBrushSurface0}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+  </Window.Resources>
+
+  <Grid x:Name="RootContent" Margin="24,20" Opacity="0" RenderTransformOrigin="0.5,0.5">
+    <Grid.RenderTransform>
+      <ScaleTransform x:Name="EntryScale" ScaleX="0.96" ScaleY="0.96"/>
+    </Grid.RenderTransform>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>  <!-- header -->
+      <RowDefinition Height="*"/>     <!-- list -->
+      <RowDefinition Height="Auto"/>  <!-- footer -->
+    </Grid.RowDefinitions>
+
+    <!-- ── Header ─────────────────────────────────────────────────────────── -->
+    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+      <TextBlock Text="단축키 도움말"
+                 Foreground="{DynamicResource KmuxBrushText}"
+                 FontSize="16" FontWeight="SemiBold" Margin="0,0,0,6"/>
+      <StackPanel Orientation="Horizontal">
+        <TextBlock Text="프리픽스:" FontSize="12"
+                   Foreground="{DynamicResource KmuxBrushSubtext1}"
+                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+        <Border Style="{StaticResource KeyBadge}">
+          <TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/>
+        </Border>
+        <TextBlock Text=" (tmux 스타일)" FontSize="11"
+                   Foreground="{DynamicResource KmuxBrushOverlay0}"
+                   VerticalAlignment="Center" Margin="6,0,0,0"/>
+      </StackPanel>
+    </StackPanel>
+
+    <!-- ── Keybinding list ────────────────────────────────────────────────── -->
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
+      <StackPanel>
+
+        <!-- ─ PANE ─ -->
+        <TextBlock Style="{StaticResource SectionLabel}" Text="PANE"/>
+        <Rectangle Style="{StaticResource SectionRule}"/>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="↑ ↓ ← →"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="Pane 간 이동"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="-"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="수평 분할"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="\"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="수직 분할"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="X"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="현재 Pane 닫기"/>
+        </DockPanel>
+
+        <!-- ─ TAB ─ -->
+        <TextBlock Style="{StaticResource SectionLabel}" Text="TAB"/>
+        <Rectangle Style="{StaticResource SectionRule}"/>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="T"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="새 탭"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+Shift+T"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DimDesc}" Text="새 탭 (직접)"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="W"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="탭 닫기"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+Shift+W"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DimDesc}" Text="탭 닫기 (직접)"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="N / P"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="다음 / 이전 탭"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+Tab"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+Shift+Tab"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DimDesc}" Text="다음 / 이전 탭 (직접)"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text=","/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="탭 이름 변경"/>
+        </DockPanel>
+
+        <!-- ─ WINDOW ─ -->
+        <TextBlock Style="{StaticResource SectionLabel}" Text="WINDOW"/>
+        <Rectangle Style="{StaticResource SectionRule}"/>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Shift+N"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="새 창"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+Shift+N"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DimDesc}" Text="새 창 (직접)"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="F11"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="전체 화면"/>
+        </DockPanel>
+
+        <!-- ─ MACRO ─ -->
+        <TextBlock Style="{StaticResource SectionLabel}" Text="MACRO"/>
+        <Rectangle Style="{StaticResource SectionRule}"/>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="R"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="녹화 시작 / 중지"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="%"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="마지막 매크로 실행"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="M"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="매크로 관리자"/>
+        </DockPanel>
+
+        <!-- ─ SESSION ─ -->
+        <TextBlock Style="{StaticResource SectionLabel}" Text="SESSION"/>
+        <Rectangle Style="{StaticResource SectionRule}"/>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="S"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="세션 저장"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="O"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="세션 관리자"/>
+        </DockPanel>
+
+        <!-- ─ HELP ─ -->
+        <TextBlock Style="{StaticResource SectionLabel}" Text="기타"/>
+        <Rectangle Style="{StaticResource SectionRule}"/>
+
+        <DockPanel Margin="0,4,0,16">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+B"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="/"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="이 도움말"/>
+        </DockPanel>
+
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- ── Footer ─────────────────────────────────────────────────────────── -->
+    <Button Grid.Row="2"
+            Style="{StaticResource ActionBtn}"
+            Content="닫기"
+            HorizontalAlignment="Right"
+            Margin="0,14,0,0"
+            IsCancel="True"
+            Click="CloseButton_Click"/>
+
+  </Grid>
+</Window>

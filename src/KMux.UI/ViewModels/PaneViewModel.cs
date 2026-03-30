@@ -12,9 +12,23 @@ public partial class PaneViewModel : ObservableObject, IDisposable
     public Guid PaneId => Terminal.PaneId;
 
     [ObservableProperty] private bool   _isFocused;
-    [ObservableProperty] private string  _claudeActivity  = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PaneDisplayName))]
+    private string  _paneTitle       = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayActivity))]
+    private string  _claudeActivity  = "";
     [ObservableProperty] private string  _displayPath     = "";
-    [ObservableProperty] private string? _claudeSessionId;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShortSessionId))]
+    [NotifyPropertyChangedFor(nameof(HasSessionId))]
+    private string? _claudeSessionId;
+
+    public string  DisplayActivity  => IsClaudeBusy && string.IsNullOrEmpty(ClaudeActivity) ? "생각 중…" : ClaudeActivity;
+    public string? ShortSessionId  => ClaudeSessionId is { Length: >= 8 } s ? s[..8] : ClaudeSessionId;
+    public bool    HasSessionId    => !string.IsNullOrEmpty(ClaudeSessionId);
+    // PaneTitle when set by user, otherwise falls back to the two-segment breadcrumb for the dashboard
+    public string  PaneDisplayName => string.IsNullOrEmpty(PaneTitle) ? BreadcrumbPath : PaneTitle;
 
     public bool IsActive      => Terminal.IsActive;
     public bool IsClaudeBusy  => Terminal.IsClaudeBusy;
@@ -56,8 +70,15 @@ public partial class PaneViewModel : ObservableObject, IDisposable
         ClaudeActivityWatcher.Instance.SessionIdChanged += OnSessionIdChanged;
         ClaudeActivityWatcher.Instance.StateChanged     += OnStateChanged;
 
-        var existingId = ClaudeActivityWatcher.Instance.GetSessionId(paneId);
-        if (!string.IsNullOrEmpty(existingId)) _claudeSessionId = existingId;
+        var watcher = ClaudeActivityWatcher.Instance;
+
+        var existingId       = watcher.GetSessionId(paneId);
+        var existingActivity = watcher.GetActivity(paneId);
+        var existingBusy     = watcher.GetState(paneId);
+
+        if (!string.IsNullOrEmpty(existingId))       _claudeSessionId = existingId;
+        if (!string.IsNullOrEmpty(existingActivity)) _claudeActivity  = existingActivity;
+        if (existingBusy)                            Terminal.SetClaudeState(true);
 
         RefreshDisplayPath();
     }
@@ -114,6 +135,8 @@ public partial class PaneViewModel : ObservableObject, IDisposable
         if (_breadcrumbPath == value) return;
         _breadcrumbPath = value;
         OnPropertyChanged(nameof(BreadcrumbPath));
+        // PaneDisplayName falls back to BreadcrumbPath when no custom title is set
+        if (string.IsNullOrEmpty(PaneTitle)) OnPropertyChanged(nameof(PaneDisplayName));
     }
 
     private void OnTerminalPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -121,7 +144,10 @@ public partial class PaneViewModel : ObservableObject, IDisposable
         if (e.PropertyName == nameof(TerminalViewModel.IsActive))
             OnPropertyChanged(nameof(IsActive));
         else if (e.PropertyName == nameof(TerminalViewModel.IsClaudeBusy))
+        {
             OnPropertyChanged(nameof(IsClaudeBusy));
+            OnPropertyChanged(nameof(DisplayActivity));
+        }
         else if (e.PropertyName == nameof(TerminalViewModel.IsClaudeReady))
             OnPropertyChanged(nameof(IsClaudeReady));
         else if (e.PropertyName == nameof(TerminalViewModel.CurrentWorkingDir))

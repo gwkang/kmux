@@ -22,6 +22,7 @@ public sealed class ClaudeActivityWatcher : IDisposable
     private readonly FileSystemWatcher _watcher;
     private readonly Dictionary<Guid, string>  _activities = new();
     private readonly Dictionary<Guid, string>  _sessionIds = new();
+    private readonly Dictionary<Guid, bool>    _states     = new();
 
     public event EventHandler<(Guid PaneId, string Activity)>?  ActivityChanged;
     public event EventHandler<(Guid PaneId, string SessionId)>? SessionIdChanged;
@@ -30,6 +31,36 @@ public sealed class ClaudeActivityWatcher : IDisposable
     private ClaudeActivityWatcher()
     {
         Directory.CreateDirectory(_statusDir);
+
+        // Pre-load existing status files so PaneViewModels can read them at startup
+        // without needing to wait for a hook event to fire.
+        foreach (var file in Directory.GetFiles(_statusDir, "*.txt"))
+        {
+            var nameWithoutExt = Path.GetFileNameWithoutExtension(file);
+            try
+            {
+                if (nameWithoutExt.EndsWith("-session", StringComparison.Ordinal))
+                {
+                    var guidPart = nameWithoutExt[..^"-session".Length];
+                    if (!Guid.TryParse(guidPart, out var paneId)) continue;
+                    var id = File.ReadAllText(file).Trim();
+                    if (!string.IsNullOrEmpty(id)) _sessionIds[paneId] = id;
+                }
+                else if (nameWithoutExt.EndsWith("-state", StringComparison.Ordinal))
+                {
+                    var guidPart = nameWithoutExt[..^"-state".Length];
+                    if (!Guid.TryParse(guidPart, out var paneId)) continue;
+                    var state = File.ReadAllText(file).Trim();
+                    _states[paneId] = state == "busy";
+                }
+                else if (Guid.TryParse(nameWithoutExt, out var paneId))
+                {
+                    var activity = File.ReadAllText(file).Trim();
+                    if (!string.IsNullOrEmpty(activity)) _activities[paneId] = activity;
+                }
+            }
+            catch { }
+        }
 
         _watcher = new FileSystemWatcher(_statusDir, "*.txt")
         {
@@ -65,8 +96,10 @@ public sealed class ClaudeActivityWatcher : IDisposable
                 // State file: {paneId}-state.txt — "busy" or "ready"
                 var guidPart = nameWithoutExt[..^"-state".Length];
                 if (!Guid.TryParse(guidPart, out var paneId)) return;
-                var state = ReadWithRetry(e.FullPath);
-                StateChanged?.Invoke(this, (paneId, state == "busy"));
+                var state  = ReadWithRetry(e.FullPath);
+                var isBusy = state == "busy";
+                lock (_states) _states[paneId] = isBusy;
+                StateChanged?.Invoke(this, (paneId, isBusy));
             }
             else
             {
@@ -105,6 +138,12 @@ public sealed class ClaudeActivityWatcher : IDisposable
     {
         lock (_sessionIds)
             return _sessionIds.TryGetValue(paneId, out var v) ? v : "";
+    }
+
+    public bool GetState(Guid paneId)
+    {
+        lock (_states)
+            return _states.TryGetValue(paneId, out var v) && v;
     }
 
     public void Dispose()

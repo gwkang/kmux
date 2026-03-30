@@ -158,13 +158,16 @@ public class WebView2Bridge : IDisposable
                     var title = root.GetProperty("data").GetString() ?? "Shell";
                     _dispatcher.InvokeAsync(() => _vm.Title = title);
                     break;
-                case "paste":
-                    _dispatcher.InvokeAsync(() =>
+                case "copy":
+                    if (root.TryGetProperty("data", out var copyData))
                     {
-                        var text = System.Windows.Clipboard.GetText();
-                        if (!string.IsNullOrEmpty(text))
-                            _vm.HandleInput(text);
-                    });
+                        var sel = copyData.GetString();
+                        if (!string.IsNullOrEmpty(sel))
+                            _dispatcher.InvokeAsync(() => System.Windows.Clipboard.SetText(sel));
+                    }
+                    break;
+                case "paste":
+                    _dispatcher.InvokeAsync(() => Paste());
                     break;
                 case "kmux_prefix":
                     KmuxKeyPressed?.Invoke(Key.B, ModifierKeys.Control);
@@ -182,6 +185,19 @@ public class WebView2Bridge : IDisposable
             }
         }
         catch { /* ignore malformed messages */ }
+    }
+
+    public void Paste()
+    {
+        var text = System.Windows.Clipboard.GetText();
+        if (!string.IsNullOrEmpty(text))
+            _vm.HandleInput(text);
+    }
+
+    public async Task<string> GetSelectionAsync()
+    {
+        var json = await _webView.CoreWebView2.ExecuteScriptAsync("term.getSelection()");
+        return JsonSerializer.Deserialize<string>(json) ?? "";
     }
 
     public void Dispose()

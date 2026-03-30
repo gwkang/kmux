@@ -10,22 +10,35 @@
       <RowDefinition Height="*"  />  <!-- Terminal content -->
     </Grid.RowDefinitions>
 
-    <!-- Pane header: folder path (left, middle-clipped) + Claude activity (right) -->
+    <!-- Pane header: folder path (left) + Claude activity (right); double-click to rename -->
     <Border Grid.Row="0"
             Background="{DynamicResource KmuxBrushCrust}"
-            Padding="8,0">
+            Padding="8,0"
+            MouseLeftButtonDown="Header_MouseLeftButtonDown">
       <Grid>
-        <TextBlock x:Name="PathText"
-                   FontSize="11"
-                   Foreground="{DynamicResource KmuxBrushSubtext0}"
-                   VerticalAlignment="Center"
-                   TextTrimming="CharacterEllipsis" />
-        <TextBlock x:Name="ActivityText"
-                   FontSize="11"
-                   HorizontalAlignment="Right"
-                   Foreground="{DynamicResource KmuxBrushSubtext1}"
-                   TextTrimming="CharacterEllipsis"
-                   VerticalAlignment="Center" />
+        <Grid x:Name="HeaderDisplay">
+          <TextBlock x:Name="PathText"
+                     FontSize="11"
+                     Foreground="{DynamicResource KmuxBrushSubtext0}"
+                     VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="ActivityText"
+                     FontSize="11"
+                     HorizontalAlignment="Right"
+                     Foreground="{DynamicResource KmuxBrushSubtext1}"
+                     TextTrimming="CharacterEllipsis"
+                     VerticalAlignment="Center" />
+        </Grid>
+        <TextBox x:Name="PaneTitleEdit"
+                 Visibility="Collapsed"
+                 FontSize="11"
+                 Background="{DynamicResource KmuxBrushCrust}"
+                 Foreground="{DynamicResource KmuxBrushText}"
+                 CaretBrush="{DynamicResource KmuxBrushText}"
+                 BorderThickness="0" Padding="0"
+                 VerticalContentAlignment="Center"
+                 KeyDown="PaneTitleEdit_KeyDown"
+                 LostFocus="PaneTitleEdit_LostFocus"/>
       </Grid>
     </Border>
 

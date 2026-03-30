@@ -44,4 +44,5 @@ public class PaneInfo
     public Guid    PaneId          { get; set; }
     public string  WorkingDir      { get; set; } = "";
     public string? ClaudeSessionId { get; set; }
+    public string? PaneTitle       { get; set; }
 }

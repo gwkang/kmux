@@ -43,7 +43,7 @@
                 VerticalScrollBarVisibility="Auto">
     <StackPanel>
 
-      <!-- ── Header: tab count (left) + status legend (right) ────────────── -->
+      <!-- ── Header: tab count + busy count ──────────────────────────────── -->
       <Grid Margin="20,14,20,10">
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
           <TextBlock FontSize="11"
@@ -52,28 +52,23 @@
             <Run Text="{Binding NonDashboardTabs.Count, Mode=OneWay}"/>
             <Run Text="개 탭"/>
           </TextBlock>
-        </StackPanel>
-
-        <!-- Legend: explains what each indicator color means -->
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-          <Rectangle Width="3" Height="14" RadiusX="1.5" RadiusY="1.5"
-                     Fill="{DynamicResource KmuxBrushGreen}"
-                     VerticalAlignment="Center" Margin="0,0,5,0"/>
-          <TextBlock Text="작업중" FontSize="10"
-                     Foreground="{DynamicResource KmuxBrushSubtext0}"
-                     VerticalAlignment="Center" Margin="0,0,14,0"/>
-          <Rectangle Width="3" Height="14" RadiusX="1.5" RadiusY="1.5"
-                     Fill="{DynamicResource KmuxBrushAccent}"
-                     VerticalAlignment="Center" Margin="0,0,5,0"/>
-          <TextBlock Text="대기중" FontSize="10"
-                     Foreground="{DynamicResource KmuxBrushSubtext0}"
-                     VerticalAlignment="Center" Margin="0,0,14,0"/>
-          <Rectangle Width="3" Height="14" RadiusX="1.5" RadiusY="1.5"
-                     Fill="{DynamicResource KmuxBrushOverlay0}"
-                     VerticalAlignment="Center" Margin="0,0,5,0"/>
-          <TextBlock Text="유휴" FontSize="10"
-                     Foreground="{DynamicResource KmuxBrushSubtext0}"
+          <TextBlock Text=" · " FontSize="11"
+                     Foreground="{DynamicResource KmuxBrushOverlay0}"
                      VerticalAlignment="Center"/>
+          <TextBlock FontSize="11" VerticalAlignment="Center">
+            <TextBlock.Style>
+              <Style TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource KmuxBrushGreen}"/>
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding BusyTabCount}" Value="0">
+                    <Setter Property="Foreground" Value="{DynamicResource KmuxBrushOverlay0}"/>
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </TextBlock.Style>
+            <Run Text="작업중 "/>
+            <Run Text="{Binding BusyTabCount, Mode=OneWay}"/>
+          </TextBlock>
         </StackPanel>
       </Grid>
 
@@ -130,38 +125,33 @@
 
                 <StackPanel>
                   <!-- Card header -->
-                  <Border CornerRadius="5,5,0,0" Padding="10,8">
-                    <Border.Style>
-                      <Style TargetType="Border">
-                        <Setter Property="Background" Value="{DynamicResource KmuxBrushSurface1}"/>
-                        <Style.Triggers>
-                          <!-- Subtle green tint on header when Claude is busy -->
-                          <DataTrigger Binding="{Binding IsClaudeBusy}" Value="True">
-                            <Setter Property="Background" Value="{DynamicResource KmuxBrushSurface1}"/>
-                          </DataTrigger>
-                        </Style.Triggers>
-                      </Style>
-                    </Border.Style>
+                  <Border CornerRadius="5,5,0,0" Padding="10,8"
+                          Background="{DynamicResource KmuxBrushSurface1}">
                     <Grid>
                       <TextBlock Text="{Binding Title}"
                                  Foreground="{DynamicResource KmuxBrushText}"
                                  FontWeight="SemiBold" FontSize="12"
                                  VerticalAlignment="Center"/>
-                      <!-- Active indicator dot (right edge) -->
-                      <Ellipse Width="7" Height="7"
-                               HorizontalAlignment="Right" VerticalAlignment="Center"
-                               ToolTip="현재 활성 탭">
-                        <Ellipse.Style>
-                          <Style TargetType="Ellipse">
-                            <Setter Property="Fill" Value="Transparent"/>
+                      <!-- Active indicator: accent dot + "활성" label on right edge -->
+                      <StackPanel Orientation="Horizontal"
+                                  HorizontalAlignment="Right" VerticalAlignment="Center"
+                                  ToolTip="현재 활성 탭">
+                        <StackPanel.Style>
+                          <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed"/>
                             <Style.Triggers>
                               <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                <Setter Property="Fill" Value="{DynamicResource KmuxBrushAccent}"/>
+                                <Setter Property="Visibility" Value="Visible"/>
                               </DataTrigger>
                             </Style.Triggers>
                           </Style>
-                        </Ellipse.Style>
-                      </Ellipse>
+                        </StackPanel.Style>
+                        <Ellipse Width="6" Height="6" Fill="{DynamicResource KmuxBrushAccent}"
+                                 VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBlock Text="활성" FontSize="9"
+                                   Foreground="{DynamicResource KmuxBrushAccent}"
+                                   VerticalAlignment="Center"/>
+                      </StackPanel>
                     </Grid>
                   </Border>
 
@@ -217,26 +207,68 @@
                           <!-- Row content — left-padded to clear the stripe -->
                           <StackPanel Margin="11,4,10,4">
 
-                            <!-- Breadcrumb path -->
-                            <TextBlock Text="{Binding BreadcrumbPath}"
-                                       ToolTip="{Binding WorkingDirectory}"
-                                       FontSize="11"
-                                       TextTrimming="CharacterEllipsis"
-                                       VerticalAlignment="Center">
-                              <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                  <Setter Property="Foreground" Value="{DynamicResource KmuxBrushSubtext1}"/>
-                                  <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsClaudeBusy}" Value="True">
-                                      <Setter Property="Foreground" Value="{DynamicResource KmuxBrushText}"/>
-                                    </DataTrigger>
-                                  </Style.Triggers>
-                                </Style>
-                              </TextBlock.Style>
-                            </TextBlock>
+                            <!-- Pane name row: name left, spinner right when busy -->
+                            <Grid>
+                              <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                              </Grid.ColumnDefinitions>
 
-                            <!-- Claude activity text — visible only when non-empty -->
-                            <TextBlock Text="{Binding ClaudeActivity}"
+                              <TextBlock Grid.Column="0"
+                                         Text="{Binding PaneDisplayName}"
+                                         ToolTip="{Binding WorkingDirectory}"
+                                         FontSize="11"
+                                         TextTrimming="CharacterEllipsis"
+                                         VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                  <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{DynamicResource KmuxBrushSubtext1}"/>
+                                    <Style.Triggers>
+                                      <DataTrigger Binding="{Binding IsClaudeBusy}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource KmuxBrushText}"/>
+                                      </DataTrigger>
+                                    </Style.Triggers>
+                                  </Style>
+                                </TextBlock.Style>
+                              </TextBlock>
+
+                              <!-- Spinning sync icon — visible only when busy -->
+                              <TextBlock Grid.Column="1"
+                                         Text="&#xE895;"
+                                         FontFamily="Segoe MDL2 Assets"
+                                         FontSize="10"
+                                         Foreground="{DynamicResource KmuxBrushGreen}"
+                                         VerticalAlignment="Center"
+                                         Margin="5,0,0,0"
+                                         RenderTransformOrigin="0.5,0.5">
+                                <TextBlock.RenderTransform>
+                                  <RotateTransform Angle="0"/>
+                                </TextBlock.RenderTransform>
+                                <TextBlock.Style>
+                                  <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                      <DataTrigger Binding="{Binding IsClaudeBusy}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <DataTrigger.EnterActions>
+                                          <BeginStoryboard>
+                                            <Storyboard RepeatBehavior="Forever">
+                                              <DoubleAnimation
+                                                Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                                From="0" To="360" Duration="0:0:1"/>
+                                            </Storyboard>
+                                          </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                      </DataTrigger>
+                                    </Style.Triggers>
+                                  </Style>
+                                </TextBlock.Style>
+                              </TextBlock>
+
+                            </Grid>
+
+                            <!-- Claude activity — "생각 중…" placeholder when busy but no text -->
+                            <TextBlock Text="{Binding DisplayActivity}"
                                        FontSize="10"
                                        Margin="0,2,0,0"
                                        TextTrimming="CharacterEllipsis">
@@ -245,8 +277,27 @@
                                   <Setter Property="Visibility"  Value="Visible"/>
                                   <Setter Property="Foreground"  Value="{DynamicResource KmuxBrushGreen}"/>
                                   <Style.Triggers>
-                                    <DataTrigger Binding="{Binding ClaudeActivity}" Value="">
+                                    <DataTrigger Binding="{Binding DisplayActivity}" Value="">
                                       <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                              </TextBlock.Style>
+                            </TextBlock>
+
+                            <!-- Session ID — shown only once a Claude session is active -->
+                            <TextBlock Text="{Binding ShortSessionId}"
+                                       FontSize="9" FontFamily="Consolas"
+                                       Foreground="{DynamicResource KmuxBrushOverlay0}"
+                                       Margin="0,2,0,0"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding ClaudeSessionId}">
+                              <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                  <Setter Property="Visibility" Value="Collapsed"/>
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasSessionId}" Value="True">
+                                      <Setter Property="Visibility" Value="Visible"/>
                                     </DataTrigger>
                                   </Style.Triggers>
                                 </Style>
@@ -282,10 +333,41 @@
                    FontFamily="Segoe MDL2 Assets" FontSize="36"
                    Foreground="{DynamicResource KmuxBrushOverlay0}"
                    HorizontalAlignment="Center" Margin="0,0,0,14"/>
-        <TextBlock Text="새 탭 버튼(+)으로 터미널을 시작하세요"
+        <TextBlock Text="아직 열린 탭이 없습니다"
                    Foreground="{DynamicResource KmuxBrushSubtext0}"
                    FontSize="13"
                    HorizontalAlignment="Center"/>
+        <Button Content="Claude 탭 열기"
+                Command="{Binding NewClaudeTabCommand}"
+                HorizontalAlignment="Center"
+                Margin="0,16,0,0" Padding="20,8"
+                FontSize="12" Cursor="Hand">
+          <Button.Style>
+            <Style TargetType="Button">
+              <Setter Property="Background"      Value="{DynamicResource KmuxBrushAccent}"/>
+              <Setter Property="Foreground"      Value="{DynamicResource KmuxBrushBase}"/>
+              <Setter Property="BorderThickness" Value="0"/>
+              <Setter Property="Template">
+                <Setter.Value>
+                  <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            CornerRadius="5" Padding="{TemplateBinding Padding}">
+                      <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                  </ControlTemplate>
+                </Setter.Value>
+              </Setter>
+              <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter Property="Opacity" Value="0.85"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                  <Setter Property="Opacity" Value="0.7"/>
+                </Trigger>
+              </Style.Triggers>
+            </Style>
+          </Button.Style>
+        </Button>
       </StackPanel>
 
     </StackPanel>
