@@ -70,6 +70,9 @@ public class KeyBindingMap
         map.AddChord(prefix, new KeyChord(Key.S),                       "session.save");
         map.AddChord(prefix, new KeyChord(Key.O),                       "session.manager");
 
+        // Help
+        map.AddChord(prefix, new KeyChord(Key.OemQuestion),             "help.keybindings");
+
         // Direct bindings (no prefix)
         map.AddSingle(new KeyChord(Key.Tab,  ModifierKeys.Control),     "tab.next");
         map.AddSingle(new KeyChord(Key.Tab,  ModifierKeys.Control | ModifierKeys.Shift), "tab.prev");

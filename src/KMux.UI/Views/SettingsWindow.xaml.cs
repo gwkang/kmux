@@ -9,7 +9,7 @@ namespace KMux.UI.Views;
 
 public partial class SettingsWindow : Window
 {
-    private record ThemeItem(string Name, Brush Background, Brush Accent, Brush Green, Brush Red);
+    private record ThemeItem(string Name, Brush Background, Brush Mantle, Brush Text, Brush Accent, Brush Green, Brush Red);
 
     private static readonly string[] FontFamilies =
     [
@@ -28,6 +28,8 @@ public partial class SettingsWindow : Window
         _themeItems = BuiltInThemes.All.Select(kv => new ThemeItem(
             Name:       kv.Key,
             Background: ThemeHelper.HexBrush(kv.Value.Base),
+            Mantle:     ThemeHelper.HexBrush(kv.Value.Mantle),
+            Text:       ThemeHelper.HexBrush(kv.Value.Text),
             Accent:     ThemeHelper.HexBrush(kv.Value.Accent),
             Green:      ThemeHelper.HexBrush(kv.Value.Green),
             Red:        ThemeHelper.HexBrush(kv.Value.Red)
@@ -58,7 +60,11 @@ public partial class SettingsWindow : Window
 
     private void ThemeList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
-        if (ThemeList.SelectedItem is ThemeItem item) _draft.ThemeName = item.Name;
+        if (ThemeList.SelectedItem is ThemeItem item)
+        {
+            _draft.ThemeName = item.Name;
+            ApplyThemeColors(item);
+        }
     }
 
     private void FontFamilyCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -89,8 +95,17 @@ public partial class SettingsWindow : Window
     {
         var ff = new FontFamily(_draft.TerminalFontFamily + ", Consolas, Courier New");
         var fs = (double)_draft.TerminalFontSize;
-        PreviewText1.FontFamily = PreviewText2.FontFamily = PreviewText3.FontFamily = ff;
-        PreviewText1.FontSize   = PreviewText2.FontSize   = PreviewText3.FontSize   = fs;
+        PreviewText1.FontFamily = PreviewText2.FontFamily = PreviewText3.FontFamily = PreviewText4.FontFamily = ff;
+        PreviewText1.FontSize   = PreviewText2.FontSize   = PreviewText3.FontSize   = PreviewText4.FontSize   = fs;
+    }
+
+    private void ApplyThemeColors(ThemeItem item)
+    {
+        PreviewBorder.Background = item.Mantle;
+        PreviewText1.Foreground  = item.Text;
+        PreviewText2.Foreground  = item.Accent;
+        PreviewText3.Foreground  = item.Green;
+        PreviewText4.Foreground  = item.Red;
     }
 
     private static AppSettings CloneSettings(AppSettings src) => new()

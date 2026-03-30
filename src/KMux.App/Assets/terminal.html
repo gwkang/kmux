@@ -86,6 +86,13 @@
     term.attachCustomKeyEventHandler(ev => {
       if (ev.type !== 'keydown') return true;
 
+      if (ev.ctrlKey && ev.shiftKey && !ev.altKey && ev.code === 'KeyC') {
+        const sel = term.getSelection();
+        if (sel) window.chrome.webview.postMessage({ type: 'copy', data: sel });
+        ev.preventDefault();
+        return false;
+      }
+
       // Ctrl+V / Ctrl+Shift+V paste: route through C# to bypass WebView2 clipboard restrictions
       if (ev.ctrlKey && !ev.altKey && ev.code === 'KeyV') {
         window.chrome.webview.postMessage({ type: 'paste' });

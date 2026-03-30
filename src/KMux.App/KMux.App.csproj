@@ -8,6 +8,7 @@
     <OutputType>WinExe</OutputType>
 <AssemblyName>KMux</AssemblyName>
     <RootNamespace>KMux.App</RootNamespace>
+    <ApplicationIcon>Assets\kmux.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
@@ -25,6 +26,7 @@
     <ProjectReference Include="..\KMux.Keybindings\KMux.Keybindings.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Resource Include="Assets\kmux.ico" />
     <Content Include="Assets\xterm\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
