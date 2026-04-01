@@ -308,6 +308,33 @@
           <TextBlock Style="{StaticResource DescText}" Text="세션 관리자"/>
         </DockPanel>
 
+        <!-- ─ TERMINAL ─ -->
+        <TextBlock Style="{StaticResource SectionLabel}" Text="터미널"/>
+        <Rectangle Style="{StaticResource SectionRule}"/>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+Shift+C"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="선택 영역 복사"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+V"/></Border>
+            <TextBlock Style="{StaticResource Arrow}"/>
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+Shift+V"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DescText}" Text="붙여넣기"/>
+        </DockPanel>
+
+        <DockPanel Margin="0,4">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Width="195">
+            <Border Style="{StaticResource KeyBadge}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl+C"/></Border>
+          </StackPanel>
+          <TextBlock Style="{StaticResource DimDesc}" Text="실행 중단 (SIGINT)"/>
+        </DockPanel>
+
         <!-- ─ HELP ─ -->
         <TextBlock Style="{StaticResource SectionLabel}" Text="기타"/>
         <Rectangle Style="{StaticResource SectionRule}"/>

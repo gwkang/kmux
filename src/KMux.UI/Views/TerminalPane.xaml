@@ -11,20 +11,27 @@
     </Grid.RowDefinitions>
 
     <!-- Pane header: folder path (left) + Claude activity (right); double-click to rename -->
-    <Border Grid.Row="0"
+    <Border x:Name="HeaderBorder"
+            Grid.Row="0"
             Background="{DynamicResource KmuxBrushCrust}"
             Padding="8,0"
             MouseLeftButtonDown="Header_MouseLeftButtonDown">
       <Grid>
         <Grid x:Name="HeaderDisplay">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto" MaxWidth="140"/>
+          </Grid.ColumnDefinitions>
           <TextBlock x:Name="PathText"
+                     Grid.Column="0"
                      FontSize="11"
                      Foreground="{DynamicResource KmuxBrushSubtext0}"
                      VerticalAlignment="Center"
                      TextTrimming="CharacterEllipsis" />
           <TextBlock x:Name="ActivityText"
+                     Grid.Column="1"
                      FontSize="11"
-                     HorizontalAlignment="Right"
+                     Margin="6,0,0,0"
                      Foreground="{DynamicResource KmuxBrushSubtext1}"
                      TextTrimming="CharacterEllipsis"
                      VerticalAlignment="Center" />
@@ -42,13 +49,21 @@
       </Grid>
     </Border>
 
-    <!-- Focus border indicator (accent color when focused, subtle when not) -->
+    <!-- Focus border indicator (accent color when focused, transparent when not) -->
     <Border x:Name="FocusBorder"
             Grid.Row="1"
             BorderThickness="2"
-            BorderBrush="{DynamicResource KmuxBrushSurface0}"
+            BorderBrush="Transparent"
             Panel.ZIndex="1"
             IsHitTestVisible="False" />
+
+    <!-- Inactive overlay: subtle dim on unfocused panes to reinforce visual hierarchy -->
+    <Rectangle x:Name="InactiveOverlay"
+               Grid.Row="1"
+               Fill="#1A000000"
+               Opacity="0"
+               Panel.ZIndex="2"
+               IsHitTestVisible="False" />
 
     <!-- Activity bar: top strip, visible when Claude is working -->
     <Rectangle x:Name="ActivityBar"
@@ -56,7 +71,7 @@
                Height="3"
                VerticalAlignment="Top"
                HorizontalAlignment="Stretch"
-               Panel.ZIndex="2"
+               Panel.ZIndex="3"
                IsHitTestVisible="False"
                Fill="{DynamicResource KmuxBrushGreen}"
                Opacity="0" />

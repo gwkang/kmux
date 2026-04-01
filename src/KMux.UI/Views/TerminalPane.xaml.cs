@@ -55,7 +55,9 @@ public partial class TerminalPane : UserControl, IDisposable
             if (e.NewValue is PaneViewModel newVm)
             {
                 newVm.PropertyChanged += pane.OnVmPropertyChanged;
+                pane._lastIsHighlighted = null; // force full visual init on next UpdateFocusBorder
                 pane.Dispatcher.InvokeAsync(pane.UpdateHeader);
+                pane.Dispatcher.InvokeAsync(pane.UpdateFocusBorder);
             }
         }
     }
@@ -143,6 +145,10 @@ public partial class TerminalPane : UserControl, IDisposable
     private static readonly DoubleAnimation PulseAnimation;
     private static readonly DoubleAnimation FadeOutAnimation;
     private static readonly DoubleAnimation FadeInAnimation;
+    private static readonly DoubleAnimation OverlayFadeInAnimation;
+    private static readonly DoubleAnimation OverlayFadeOutAnimation;  // 150 ms — snappier than the activity bar (200–300 ms) for a focus transition
+
+    private bool? _lastIsHighlighted;
 
     static TerminalPane()
     {
@@ -166,12 +172,19 @@ public partial class TerminalPane : UserControl, IDisposable
         FadeOutAnimation.Freeze();
         FadeInAnimation = new DoubleAnimation(1.0, new Duration(TimeSpan.FromMilliseconds(200)));
         FadeInAnimation.Freeze();
+        OverlayFadeInAnimation  = new DoubleAnimation(1.0, new Duration(TimeSpan.FromMilliseconds(150)));
+        OverlayFadeInAnimation.Freeze();
+        OverlayFadeOutAnimation = new DoubleAnimation(0.0, new Duration(TimeSpan.FromMilliseconds(150)));
+        OverlayFadeOutAnimation.Freeze();
     }
 
     private void UpdateFocusBorder()
     {
         // Thickness is always 2 — only color changes to avoid visual noise from size shifts
         FocusBorder.BorderThickness = new Thickness(2);
+
+        // isHighlighted: pane has keyboard focus OR Claude just finished (distinct from ViewModel.IsActive = terminal process active)
+        var isHighlighted = ViewModel?.IsFocused == true || ViewModel?.IsClaudeReady == true;
 
         if (ViewModel?.IsClaudeReady == true)
         {
@@ -184,8 +197,38 @@ public partial class TerminalPane : UserControl, IDisposable
         }
         else
         {
-            FocusBorder.BorderBrush = ThemeHelper.GetBrush(ThemeResourceKeys.Surface0, Color.FromRgb(49, 50, 68));
+            // Transparent — let the accent border stand out by contrast, not compete with a dim fallback
+            FocusBorder.BorderBrush = Brushes.Transparent;
         }
+
+        // Guard: only update header/overlay when highlighted state actually changes to avoid
+        // restarting BeginAnimation mid-flight (which causes a visible flicker on rapid state transitions)
+        if (_lastIsHighlighted != isHighlighted)
+        {
+            _lastIsHighlighted = isHighlighted;
+            UpdateHeaderStyle(isHighlighted);
+            UpdateInactiveOverlay(isHighlighted);
+        }
+    }
+
+    private void UpdateHeaderStyle(bool isHighlighted)
+    {
+        if (isHighlighted)
+        {
+            HeaderBorder.Background = ThemeHelper.GetBrush(ThemeResourceKeys.Surface0, Color.FromRgb(49, 50, 68));
+            PathText.Foreground     = ThemeHelper.GetBrush(ThemeResourceKeys.Subtext1, Color.FromRgb(166, 173, 200));
+        }
+        else
+        {
+            HeaderBorder.Background = ThemeHelper.GetBrush(ThemeResourceKeys.Crust, Color.FromRgb(17, 17, 27));
+            PathText.Foreground     = ThemeHelper.GetBrush(ThemeResourceKeys.Subtext0, Color.FromRgb(88, 91, 112));
+        }
+    }
+
+    private void UpdateInactiveOverlay(bool isHighlighted)
+    {
+        InactiveOverlay.BeginAnimation(OpacityProperty,
+            isHighlighted ? OverlayFadeOutAnimation : OverlayFadeInAnimation);
     }
 
     private void UpdateActivityBar()
