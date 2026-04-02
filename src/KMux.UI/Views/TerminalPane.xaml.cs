@@ -70,7 +70,16 @@ public partial class TerminalPane : UserControl, IDisposable
             {
                 UpdateFocusBorder();
                 if (ViewModel?.IsFocused == true)
+                {
+                    // Move Win32 keyboard focus to the WebView2 HWND so that
+                    // xterm.js's attachCustomKeyEventHandler receives keystrokes.
+                    // Without this, programmatic focus (e.g. after tab switch via
+                    // keyboard shortcut) leaves neither WPF nor WebView2 with focus,
+                    // causing the next shortcut press to be silently dropped.
+                    if (!WebView.IsKeyboardFocusWithin)
+                        WebView.Focus();
                     _ = WebView.ExecuteScriptAsync("window.termFocus && window.termFocus()");
+                }
             });
         }
         else if (e.PropertyName == nameof(PaneViewModel.IsActive)
@@ -180,11 +189,8 @@ public partial class TerminalPane : UserControl, IDisposable
 
     private void UpdateFocusBorder()
     {
-        // Thickness is always 2 — only color changes to avoid visual noise from size shifts
-        FocusBorder.BorderThickness = new Thickness(2);
-
-        // isHighlighted: pane has keyboard focus OR Claude just finished (distinct from ViewModel.IsActive = terminal process active)
-        var isHighlighted = ViewModel?.IsFocused == true || ViewModel?.IsClaudeReady == true;
+        // isHighlighted: keyboard focus only — Claude-ready state is communicated separately via FocusBorder green color
+        var isHighlighted = ViewModel?.IsFocused == true;
 
         if (ViewModel?.IsClaudeReady == true)
         {

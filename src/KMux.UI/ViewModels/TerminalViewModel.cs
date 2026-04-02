@@ -37,6 +37,12 @@ public partial class TerminalViewModel : ObservableObject, IDisposable
     private readonly System.Timers.Timer _idleTimer;
     private readonly System.Timers.Timer _claudeIdleTimer;
 
+    // Set to true when the Stop hook definitively reports idle; cleared when
+    // PreToolUse reports busy again.  While true, the spinner heuristic is
+    // suppressed so that buffered output arriving after Stop does not
+    // incorrectly flip the state back to busy.
+    private volatile bool _hookConfirmedIdle;
+
     // Called by WebView2Bridge to forward output to xterm.js
     private readonly List<string> _outputBuffer = new();
     private EventHandler<string>? _outputAvailable;
@@ -123,8 +129,10 @@ public partial class TerminalViewModel : ObservableObject, IDisposable
                 () => CurrentWorkingDir = path);
         }
 
-        // Detect Claude Code spinner → sustained busy state
-        if (text.IndexOfAny(ClaudeSpinnerChars) >= 0)
+        // Detect Claude Code spinner → sustained busy state.
+        // Skip when a hook has already confirmed idle to avoid re-arming the
+        // 30-second timer on buffered output that arrives after the Stop hook.
+        if (!_hookConfirmedIdle && text.IndexOfAny(ClaudeSpinnerChars) >= 0)
         {
             System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
             {
@@ -148,6 +156,7 @@ public partial class TerminalViewModel : ObservableObject, IDisposable
     /// </summary>
     public void SetClaudeState(bool busy)
     {
+        _hookConfirmedIdle = !busy;
         _claudeIdleTimer.Stop();
         IsClaudeBusy  = busy;
         IsClaudeReady = !busy;
