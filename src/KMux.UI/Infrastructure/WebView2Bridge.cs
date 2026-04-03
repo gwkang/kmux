@@ -190,8 +190,12 @@ public class WebView2Bridge : IDisposable
     public void Paste()
     {
         var text = System.Windows.Clipboard.GetText();
-        if (!string.IsNullOrEmpty(text))
-            _vm.HandleInput(text);
+        if (string.IsNullOrEmpty(text)) return;
+        // Route through xterm.js term.paste() so bracket paste mode (ESC[?2004h)
+        // is honoured. Sending raw text via HandleInput bypasses this, causing
+        // shells/Claude Code to interpret \r as Enter and immediately submit input.
+        _ = _webView.CoreWebView2.ExecuteScriptAsync(
+            $"term.paste({JsonSerializer.Serialize(text)})");
     }
 
     public async Task<string> GetSelectionAsync()
