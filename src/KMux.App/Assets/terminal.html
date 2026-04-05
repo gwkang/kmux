@@ -157,6 +157,8 @@
             lines.push(term.buffer.active.getLine(i)?.translateToString() ?? '');
           }
           window.chrome.webview.postMessage({ type: 'scrollback', data: lines.join('\n') });
+        } else if (msg.type === 'refit') {
+          fitAddon.fit();
         } else if (msg.type === 'settings') {
           if (msg.fontFamily) term.options.fontFamily = msg.fontFamily;
           if (msg.fontSize)   term.options.fontSize   = msg.fontSize;

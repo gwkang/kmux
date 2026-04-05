@@ -54,11 +54,15 @@ public class LayoutTree
         bool wantFirst = dir is NavigationDirection.Up or NavigationDirection.Left;
         bool horizontal = info.split.Direction == SplitDirection.Horizontal;
 
+        // Horizontal split = top/bottom; vertical split = left/right.
+        // L/R navigation needs a vertical (left/right) split; U/D needs a horizontal split.
         bool relevant = dir is NavigationDirection.Left or NavigationDirection.Right
-            ? horizontal
-            : !horizontal;
+            ? !horizontal
+            : horizontal;
 
         if (!relevant) return null;
+
+        if (wantFirst == info.isFirst) return null;
 
         var sibling = info.isFirst ? info.split.Second : info.split.First;
         return FirstLeaf(sibling);
