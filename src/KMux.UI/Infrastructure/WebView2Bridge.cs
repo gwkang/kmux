@@ -187,6 +187,20 @@ public class WebView2Bridge : IDisposable
         catch { /* ignore malformed messages */ }
     }
 
+    public void Refit()
+    {
+        // New panes fit themselves when terminal.html loads; skip buffering so we
+        // don't send a stale refit after "ready" when the size has already settled.
+        lock (_pendingMessages)
+        {
+            if (!_initialized) return;
+        }
+        _dispatcher.InvokeAsync(
+            () => _webView.CoreWebView2.PostWebMessageAsString(
+                JsonSerializer.Serialize(new { type = "refit" })),
+            DispatcherPriority.Background);
+    }
+
     public void Paste()
     {
         var text = System.Windows.Clipboard.GetText();

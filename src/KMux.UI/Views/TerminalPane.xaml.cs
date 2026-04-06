@@ -295,6 +295,8 @@ public partial class TerminalPane : UserControl, IDisposable
         }
     }
 
+    public void Refit() => _bridge?.Refit();
+
     public void Dispose()
     {
         if (_disposed) return;

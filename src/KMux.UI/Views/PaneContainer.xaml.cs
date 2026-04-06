@@ -114,6 +114,16 @@ public partial class PaneContainer : UserControl
         }
 
         RootGrid.Children.Add(BuildElement(root));
+
+        // After the WPF layout pass completes and WebView2 HWNDs are at their final
+        // sizes, re-fit all terminals. ResizeObserver inside xterm.js should handle
+        // most cases, but can be missed when panes are reparented during a rebuild.
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (Tab is not null && _tabPaneCache.TryGetValue(Tab.Id, out var paneCache))
+                foreach (var pane in paneCache.Values)
+                    pane.Refit();
+        }, System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     private void EvictCacheFor(TabViewModel tab)
