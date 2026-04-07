@@ -220,6 +220,8 @@ public class WebView2Bridge : IDisposable
 
     public void Dispose()
     {
+        KmuxKeyPressed    = null;
+        ShowPaneContextMenu = null;
         _vm.OutputAvailable -= OnOutputAvailable;
         AppSettingsService.SettingsChanged -= OnSettingsChanged;
         if (_webView.CoreWebView2 is not null)

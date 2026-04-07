@@ -271,26 +271,35 @@ public partial class TerminalPane : UserControl, IDisposable
     {
         if (ViewModel is null || AssetsPath is null || _bridge is not null) return;
 
-        _bridge = new WebView2Bridge(WebView, ViewModel.Terminal);
-        _bridge.KmuxKeyPressed = (key, mods) =>
-        {
-            if (Window.GetWindow(this) is TerminalWindow win)
-                win.HandleAcceleratorKey(key, mods);
-        };
-        _bridge.ShowPaneContextMenu = () =>
-        {
-            if (Window.GetWindow(this) is TerminalWindow win)
-                win.ShowPaneContextMenu(this, _bridge.GetSelectionAsync, _bridge.Paste);
-        };
         try
         {
+            _bridge = new WebView2Bridge(WebView, ViewModel.Terminal);
+            _bridge.KmuxKeyPressed = (key, mods) =>
+            {
+                if (Window.GetWindow(this) is TerminalWindow win)
+                    win.HandleAcceleratorKey(key, mods);
+            };
+            _bridge.ShowPaneContextMenu = () =>
+            {
+                if (Window.GetWindow(this) is TerminalWindow win)
+                    win.ShowPaneContextMenu(this, _bridge.GetSelectionAsync, _bridge.Paste);
+            };
+
             await _bridge.InitializeAsync(AssetsPath);
+
+            // If the pane was removed from the visual tree while WebView2 was initializing
+            // (e.g. user switched to dashboard), abort cleanly so the next Loaded event can retry.
+            if (!IsLoaded)
+            {
+                _bridge.Dispose();
+                _bridge = null;
+            }
         }
         catch
         {
             // Visual tree was removed mid-init (e.g. user switched to dashboard before
             // WebView2 finished). Reset so Loaded can retry when the pane re-enters the tree.
-            _bridge.Dispose();
+            _bridge?.Dispose();
             _bridge = null;
         }
     }
