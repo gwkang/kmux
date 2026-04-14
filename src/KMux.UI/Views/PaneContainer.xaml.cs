@@ -75,7 +75,14 @@ public partial class PaneContainer : UserControl
         {
             newTab.PropertyChanged += container.OnTabPropertyChanged;
             newTab.Disposing       += container.OnTabDisposing;
-            container.Rebuild(newTab.LayoutRoot);
+            // Dashboard has no panes and is shown via Visibility=Collapsed on this
+            // control (XAML DataTrigger).  Calling Rebuild would call
+            // RootGrid.Children.Clear(), destroying the WebView2 HwndHost HWND
+            // while it may still be initialising — causing a native crash that
+            // the C# catch block cannot intercept.  Skip Rebuild; the current
+            // pane layout stays untouched inside the collapsed container.
+            if (!newTab.IsDashboard)
+                container.Rebuild(newTab.LayoutRoot);
         }
         else
         {

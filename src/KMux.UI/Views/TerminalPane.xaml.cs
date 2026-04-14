@@ -71,14 +71,18 @@ public partial class TerminalPane : UserControl, IDisposable
                 UpdateFocusBorder();
                 if (ViewModel?.IsFocused == true)
                 {
-                    // Move Win32 keyboard focus to the WebView2 HWND so that
-                    // xterm.js's attachCustomKeyEventHandler receives keystrokes.
-                    // Without this, programmatic focus (e.g. after tab switch via
-                    // keyboard shortcut) leaves neither WPF nor WebView2 with focus,
-                    // causing the next shortcut press to be silently dropped.
-                    if (!WebView.IsKeyboardFocusWithin)
-                        WebView.Focus();
-                    _ = WebView.ExecuteScriptAsync("window.termFocus && window.termFocus()");
+                    // Only grab Win32 focus when KMux is the active window.
+                    // WebView.Focus() and term.focus() can both end up calling
+                    // SetForegroundWindow(), which would steal focus from a game
+                    // or any other foreground app while KMux is in the background.
+                    // When the user brings KMux back to the foreground, WPF restores
+                    // Win32 focus to the last-focused HWND automatically.
+                    if (Window.GetWindow(this) is { IsActive: true })
+                    {
+                        if (!WebView.IsKeyboardFocusWithin)
+                            WebView.Focus();
+                        _ = WebView.ExecuteScriptAsync("window.termFocus && window.termFocus()");
+                    }
                 }
             });
         }
