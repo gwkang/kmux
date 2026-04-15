@@ -95,6 +95,8 @@ internal static class ConPtyNativeMethods
 
     internal const uint EXTENDED_STARTUPINFO_PRESENT  = 0x00080000;
     internal const uint CREATE_UNICODE_ENVIRONMENT    = 0x00000400;
+    internal const int  STARTF_USESTDHANDLES          = 0x00000100;
+    internal static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
 
     // ── Structures ───────────────────────────────────────────────────────────
 

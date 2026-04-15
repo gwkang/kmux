@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "KMux Debug",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build KMux",
+      "program": "${workspaceFolder}/src/KMux.App/bin/x64/Debug/net8.0-windows/KMux.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/KMux.App",
+      "justMyCode": true,
+      "stopAtEntry": false,
+      "console": "internalConsole",
+      "hotReloadEnabled": false
+    },
+    {
+      "name": "KMux Debug (No Build)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/KMux.App/bin/x64/Debug/net8.0-windows/KMux.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/KMux.App",
+      "justMyCode": true,
+      "stopAtEntry": false,
+      "console": "internalConsole",
+      "hotReloadEnabled": false
+    }
+  ]
+}

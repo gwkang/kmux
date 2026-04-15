@@ -42,9 +42,19 @@ internal static unsafe class ProcessFactory
             si.StartupInfo.cb = sizeof(STARTUPINFOEX);
             si.lpAttributeList = pAttrList;
 
+            // Explicitly null out the standard handles so they are never inherited,
+            // even when the parent process has its stdin/stdout/stderr redirected
+            // (e.g. VS Code debugger's internalConsole). Without STARTF_USESTDHANDLES
+            // the child would fall back to the parent's standard handles, causing shell
+            // output to leak into the debug console instead of the ConPTY pipe.
+            si.StartupInfo.dwFlags   = STARTF_USESTDHANDLES;
+            si.StartupInfo.hStdInput  = INVALID_HANDLE_VALUE;
+            si.StartupInfo.hStdOutput = INVALID_HANDLE_VALUE;
+            si.StartupInfo.hStdError  = INVALID_HANDLE_VALUE;
+
             // ── Step 4: launch process ───────────────────────────────────────
-            var creationFlags = EXTENDED_STARTUPINFO_PRESENT;
-            if (envBlock != IntPtr.Zero) creationFlags |= CREATE_UNICODE_ENVIRONMENT;
+            // envBlock is always non-null (BuildEnvironmentBlock always builds an explicit block)
+            var creationFlags = EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT;
 
             PROCESS_INFORMATION pi;
             if (!CreateProcess(
@@ -70,18 +80,47 @@ internal static unsafe class ProcessFactory
         }
     }
 
+    // Env vars injected by the VS Code coreclr debugger (Hot Reload agent, test host, etc.)
+    // that must NOT leak into child shells — pwsh.exe is itself .NET and would try to load
+    // the debugger's startup hook, stalling before producing any output.
+    private static readonly string[] _debuggerExactKeys =
+    [
+        "DOTNET_STARTUP_HOOKS",
+        "DOTNET_MODIFIABLE_ASSEMBLIES",
+        "DOTNET_HOTRELOAD_NAMEDPIPE_NAME",
+    ];
+
+    private static readonly string[] _debuggerPrefixes =
+    [
+        "DOTNET_WATCH",
+        "ASPNETCORE_",
+        "VSTEST_",
+    ];
+
+    private static bool IsDebuggerInjected(string key)
+    {
+        foreach (var k in _debuggerExactKeys)
+            if (string.Equals(key, k, StringComparison.OrdinalIgnoreCase)) return true;
+        foreach (var p in _debuggerPrefixes)
+            if (key.StartsWith(p, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
     /// <summary>
     /// Builds a null-terminated Unicode environment block for CreateProcess.
-    /// Returns IntPtr.Zero if <paramref name="extra"/> is empty (caller inherits parent env).
+    /// Always constructs an explicit block (never returns IntPtr.Zero) so that
+    /// debugger-injected vars are filtered out regardless of <paramref name="extra"/>.
     /// </summary>
     private static IntPtr BuildEnvironmentBlock(Dictionary<string, string> extra)
     {
-        if (extra.Count == 0) return IntPtr.Zero;
-
-        // Start from current process environment and merge extras
+        // Start from current process environment, strip debugger-injected keys, merge extras
         var env = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (DictionaryEntry entry in Environment.GetEnvironmentVariables())
-            env[(string)entry.Key] = (string?)entry.Value ?? "";
+        {
+            var key = (string)entry.Key;
+            if (!IsDebuggerInjected(key))
+                env[key] = (string?)entry.Value ?? "";
+        }
         foreach (var kv in extra)
             env[kv.Key] = kv.Value;
 
