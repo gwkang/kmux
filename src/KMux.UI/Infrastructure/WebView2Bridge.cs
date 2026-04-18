@@ -25,6 +25,11 @@ public class WebView2Bridge : IDisposable
     /// <summary>Called on the UI thread when the user right-clicks inside the terminal pane.</summary>
     public Action? ShowPaneContextMenu { get; set; }
 
+    /// <summary>
+    /// When set, called after "ready" is received to decide whether to post a focus message to JS.
+    /// Should return true only when the window is active and this pane should receive focus.
+    /// </summary>
+    public Func<bool>? ShouldFocusOnReady { get; set; }
 
     public WebView2Bridge(WebView2 webView, TerminalViewModel vm)
     {
@@ -144,6 +149,11 @@ public class WebView2Bridge : IDisposable
                             _webView.CoreWebView2.PostWebMessageAsString(pending);
                         _pendingMessages.Clear();
                     }
+                    // Focus only when the window is active and this pane owns keyboard focus.
+                    // terminal.html no longer calls term.focus() on load to prevent
+                    // SetForegroundWindow() from stealing focus from background apps.
+                    if (ShouldFocusOnReady?.Invoke() == true)
+                        _webView.CoreWebView2.PostWebMessageAsString("{\"type\":\"focus\"}");
                     break;
                 case "input":
                     var data = root.GetProperty("data").GetString() ?? "";
@@ -220,8 +230,9 @@ public class WebView2Bridge : IDisposable
 
     public void Dispose()
     {
-        KmuxKeyPressed    = null;
+        KmuxKeyPressed      = null;
         ShowPaneContextMenu = null;
+        ShouldFocusOnReady  = null;
         _vm.OutputAvailable -= OnOutputAvailable;
         AppSettingsService.SettingsChanged -= OnSettingsChanged;
         if (_webView.CoreWebView2 is not null)

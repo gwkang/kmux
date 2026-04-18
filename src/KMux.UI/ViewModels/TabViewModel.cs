@@ -45,6 +45,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         _allPanes.Add(pane);
         SubscribePane(pane);
         ActivePaneId = firstLeaf.PaneId;
+        FocusPane(firstLeaf.PaneId);
         LayoutRoot   = _layoutTree.Root;
     }
 
@@ -91,6 +92,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         }
 
         ActivePaneId = firstId;
+        if (firstId != Guid.Empty) FocusPane(firstId);
         LayoutRoot   = _layoutTree.Root;
     }
 
@@ -115,6 +117,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         _allPanes.Add(pane);
         SubscribePane(pane);
         ActivePaneId  = newId;
+        FocusPane(newId);
         LayoutRoot    = _layoutTree.Root;
         _recorder.RecordNewPane(dir);
     }
@@ -131,7 +134,7 @@ public partial class TabViewModel : ObservableObject, IDisposable
         _layoutTree.ClosePane(paneId);
 
         if (ActivePaneId == paneId)
-            ActivePaneId = _panes.Keys.First();
+            FocusPane(_panes.Keys.First());
 
         RefreshIsBusy();
         LayoutRoot = _layoutTree.Root;

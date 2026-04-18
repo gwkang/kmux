@@ -170,7 +170,15 @@ public partial class PaneContainer : UserControl
             termPane = new TerminalPane { ViewModel = vm, AssetsPath = AssetsPath };
             // GotFocus fires reliably when the WebView2 HwndHost gains Win32 focus;
             // MouseDown does not — WebView2 captures clicks before WPF sees them.
-            termPane.GotFocus += (_, _) => Tab?.FocusPane(leaf.PaneId);
+            // Guard with IsActive: WebView2/Chromium can internally call SetForegroundWindow()
+            // and gain Win32 focus while KMux is in the background (known WebView2 bug).
+            // Without this guard, that spurious GotFocus would cascade into FocusPane →
+            // IsFocused = true → termFocus() being called, further amplifying the focus steal.
+            termPane.GotFocus += (_, _) =>
+            {
+                if (Window.GetWindow(termPane) is { IsActive: true })
+                    Tab?.FocusPane(leaf.PaneId);
+            };
             paneCache[leaf.PaneId] = termPane;
         }
         else if (termPane.Parent is Panel oldParent)

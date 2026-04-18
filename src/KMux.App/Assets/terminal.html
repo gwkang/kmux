@@ -159,6 +159,8 @@
           window.chrome.webview.postMessage({ type: 'scrollback', data: lines.join('\n') });
         } else if (msg.type === 'refit') {
           fitAddon.fit();
+        } else if (msg.type === 'focus') {
+          term.focus();
         } else if (msg.type === 'settings') {
           if (msg.fontFamily) term.options.fontFamily = msg.fontFamily;
           if (msg.fontSize)   term.options.fontSize   = msg.fontSize;
@@ -181,7 +183,9 @@
     resizeObserver.observe(document.getElementById('terminal'));
 
     // ── Focus ────────────────────────────────────────────────────────────────
-    term.focus();
+    // Do NOT call term.focus() here unconditionally — it can trigger SetForegroundWindow()
+    // inside WebView2 and steal focus from other apps while KMux is in the background.
+    // C# posts a {"type":"focus"} message when appropriate (window is active + pane is focused).
     window.termFocus  = () => term.focus();
     window.termSearch = (q, opts) => searchAddon.findNext(q, opts);
     window.termClear  = () => term.clear();

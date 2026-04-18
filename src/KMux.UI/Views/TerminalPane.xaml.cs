@@ -43,7 +43,36 @@ public partial class TerminalPane : UserControl, IDisposable
     public TerminalPane()
     {
         InitializeComponent();
-        Loaded += OnLoaded;
+        Loaded   += OnLoaded;
+        Unloaded += OnUnloaded;
+    }
+
+    // Subscribe to Window.Activated when entering the visual tree, unsubscribe on exit.
+    // This ensures term.focus() is called even if "ready" fired while the window was inactive
+    // (e.g. multi-window workspace restore: earlier windows lose IsActive before "ready" fires).
+    private Window? _parentWindow;
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        TryInitialize();
+        _parentWindow = Window.GetWindow(this);
+        if (_parentWindow is not null)
+            _parentWindow.Activated += OnWindowActivated;
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (_parentWindow is not null)
+        {
+            _parentWindow.Activated -= OnWindowActivated;
+            _parentWindow = null;
+        }
+    }
+
+    private void OnWindowActivated(object? sender, EventArgs e)
+    {
+        if (ViewModel?.IsFocused == true && _bridge is not null)
+            _ = WebView.ExecuteScriptAsync("window.termFocus && window.termFocus()");
     }
 
     private static void OnViewModelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -269,8 +298,6 @@ public partial class TerminalPane : UserControl, IDisposable
         }
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e) => TryInitialize();
-
     private async void TryInitialize()
     {
         if (ViewModel is null || AssetsPath is null || _bridge is not null) return;
@@ -288,6 +315,8 @@ public partial class TerminalPane : UserControl, IDisposable
                 if (Window.GetWindow(this) is TerminalWindow win)
                     win.ShowPaneContextMenu(this, _bridge.GetSelectionAsync, _bridge.Paste);
             };
+            _bridge.ShouldFocusOnReady = () =>
+                Window.GetWindow(this) is { IsActive: true } && ViewModel?.IsFocused == true;
 
             await _bridge.InitializeAsync(AssetsPath);
 
