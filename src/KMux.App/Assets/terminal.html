@@ -83,8 +83,10 @@
     // Intercepts Ctrl+B (prefix) and the subsequent chord so that KMux keybindings
     // work even when xterm.js (WebView2) holds Win32 keyboard focus.
     let _kmuxPrefixPending = false;
+    let _kmuxPrefixTimer   = null;
     term.attachCustomKeyEventHandler(ev => {
       if (ev.type !== 'keydown') return true;
+      if (ev.isComposing) return true;
 
       if (ev.ctrlKey && ev.shiftKey && !ev.altKey && ev.code === 'KeyC') {
         const sel = term.getSelection();
@@ -103,6 +105,8 @@
       // Detect prefix key: Ctrl+B
       if (ev.ctrlKey && !ev.shiftKey && !ev.altKey && ev.code === 'KeyB') {
         _kmuxPrefixPending = true;
+        clearTimeout(_kmuxPrefixTimer);
+        _kmuxPrefixTimer = setTimeout(() => { _kmuxPrefixPending = false; }, 2000);
         window.chrome.webview.postMessage({ type: 'kmux_prefix' });
         ev.preventDefault();
         return false;
@@ -111,6 +115,7 @@
       // Second chord after prefix
       if (_kmuxPrefixPending) {
         _kmuxPrefixPending = false;
+        clearTimeout(_kmuxPrefixTimer);
         window.chrome.webview.postMessage({
           type: 'kmux_chord', code: ev.code,
           ctrl: ev.ctrlKey, shift: ev.shiftKey, alt: ev.altKey

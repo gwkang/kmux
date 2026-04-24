@@ -46,6 +46,59 @@ public partial class TerminalWindow : Window
             VM.ActivateTabCommand.Execute(tab);
     }
 
+    // ── Tab drag-and-drop reordering ─────────────────────────────────────────
+
+    private Point _tabDragStart;
+    private TabViewModel? _draggedTab;
+
+    private void TabItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: TabViewModel { IsDashboard: false, IsRenaming: false } tab })
+        {
+            _tabDragStart = e.GetPosition(null);
+            _draggedTab = tab;
+        }
+        else
+        {
+            _draggedTab = null;
+        }
+    }
+
+    private void TabItem_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_draggedTab is null || e.LeftButton != MouseButtonState.Pressed) return;
+        var pos  = e.GetPosition(null);
+        var diff = pos - _tabDragStart;
+        if (Math.Abs(diff.X) <= SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(diff.Y) <= SystemParameters.MinimumVerticalDragDistance) return;
+
+        var tab = _draggedTab;
+        _draggedTab = null;
+        if (sender is FrameworkElement container)
+            DragDrop.DoDragDrop(container, tab, DragDropEffects.Move);
+    }
+
+    private void TabItem_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(typeof(TabViewModel)) &&
+                    sender is FrameworkElement { DataContext: TabViewModel { IsDashboard: false } }
+            ? DragDropEffects.Move
+            : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void TabItem_Drop(object sender, DragEventArgs e)
+    {
+        if (VM is null || !e.Data.GetDataPresent(typeof(TabViewModel))) return;
+        if (e.Data.GetData(typeof(TabViewModel)) is not TabViewModel sourceTab) return;
+        if (sender is not FrameworkElement { DataContext: TabViewModel { IsDashboard: false } targetTab }) return;
+        if (sourceTab == targetTab) return;
+
+        var targetIndex = VM.Tabs.IndexOf(targetTab);
+        VM.MoveTab(sourceTab, targetIndex);
+        e.Handled = true;
+    }
+
     // ── Tab rename ───────────────────────────────────────────────────────────
 
     private void TabTitle_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)

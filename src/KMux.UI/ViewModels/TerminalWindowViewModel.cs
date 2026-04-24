@@ -262,6 +262,16 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public void ActivateTab(TabViewModel tab) => SetActiveTab(tab);
 
+    public void MoveTab(TabViewModel tab, int newIndex)
+    {
+        if (tab.IsDashboard) return;
+        var oldIndex = Tabs.IndexOf(tab);
+        if (oldIndex < 0) return;
+        newIndex = Math.Clamp(newIndex, 1, Tabs.Count - 1);
+        if (oldIndex == newIndex) return;
+        Tabs.Move(oldIndex, newIndex);
+    }
+
     [RelayCommand]
     public void NextTab() => CycleTab(+1);
 
@@ -270,7 +280,12 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
 
     private void CycleTab(int direction)
     {
-        if (ActiveTab is null || ActiveTab.IsDashboard) return;
+        if (NonDashboardTabs.Count == 0) return;
+        if (ActiveTab is null || ActiveTab.IsDashboard)
+        {
+            SetActiveTab(direction > 0 ? NonDashboardTabs[0] : NonDashboardTabs[^1]);
+            return;
+        }
         var idx = NonDashboardTabs.IndexOf(ActiveTab);
         SetActiveTab(NonDashboardTabs[(idx + direction + NonDashboardTabs.Count) % NonDashboardTabs.Count]);
     }

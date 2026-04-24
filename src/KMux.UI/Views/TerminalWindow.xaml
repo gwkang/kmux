@@ -139,7 +139,11 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate>
               <!-- Grid: tab button + close button as siblings (no nesting) -->
-              <Grid>
+              <Grid AllowDrop="True"
+                    PreviewMouseLeftButtonDown="TabItem_PreviewMouseLeftButtonDown"
+                    PreviewMouseMove="TabItem_PreviewMouseMove"
+                    Drop="TabItem_Drop"
+                    DragOver="TabItem_DragOver">
                 <!-- Tab select button — full area, right padding reserves space for ✕ -->
                 <Button Style="{StaticResource TabItemStyle}"
                         Click="TabButton_Click"

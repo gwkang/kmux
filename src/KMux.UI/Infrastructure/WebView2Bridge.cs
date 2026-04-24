@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows.Input;
@@ -18,6 +19,7 @@ public class WebView2Bridge : IDisposable
     private readonly Dispatcher _dispatcher;
     private bool _initialized;
     private readonly List<string> _pendingMessages = new();
+    private CoreWebView2Controller? _controller;
 
     /// <summary>Called on the UI thread when the JS side intercepts a KMux key chord.</summary>
     public Action<Key, ModifierKeys>? KmuxKeyPressed { get; set; }
@@ -108,6 +110,7 @@ public class WebView2Bridge : IDisposable
 
         _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
         _webView.CoreWebView2.ContextMenuRequested += OnContextMenuRequested;
+        TrySubscribeAcceleratorKey();
 
         // Add host object so JS can call C# directly
         _webView.CoreWebView2.AddHostObjectToScript("kmuxBridge",
@@ -228,6 +231,47 @@ public class WebView2Bridge : IDisposable
         return JsonSerializer.Deserialize<string>(json) ?? "";
     }
 
+    // WPF PreviewKeyDown doesn't fire when WebView2 has Win32 focus.
+    // AcceleratorKeyPressed fires before Chromium processes the key, letting us
+    // intercept browser accelerators (Ctrl+Tab, F11, Ctrl+Shift+T/N/W) that would
+    // otherwise be swallowed before xterm.js or WPF ever sees them.
+    private void TrySubscribeAcceleratorKey()
+    {
+        try
+        {
+            var baseField  = typeof(WebView2).GetField("m_webview2Base", BindingFlags.NonPublic | BindingFlags.Instance);
+            var webvBase   = baseField?.GetValue(_webView);
+            var ctrlProp   = webvBase?.GetType().GetProperty("CoreWebView2Controller", BindingFlags.Public | BindingFlags.Instance);
+            _controller    = ctrlProp?.GetValue(webvBase) as CoreWebView2Controller;
+            if (_controller is not null)
+                _controller.AcceleratorKeyPressed += OnAcceleratorKeyPressed;
+        }
+        catch { }
+    }
+
+    private void OnAcceleratorKeyPressed(object? sender, CoreWebView2AcceleratorKeyPressedEventArgs e)
+    {
+        if (e.KeyEventKind != CoreWebView2KeyEventKind.KeyDown &&
+            e.KeyEventKind != CoreWebView2KeyEventKind.SystemKeyDown)
+            return;
+
+        var key = KeyInterop.KeyFromVirtualKey((int)e.VirtualKey);
+        if (key != Key.Tab && key != Key.F11 &&
+            key != Key.T  && key != Key.N  && key != Key.W)
+            return;
+
+        var mods = Keyboard.Modifiers;
+        var isDirectBinding =
+            (key == Key.Tab && (mods & ModifierKeys.Control) != 0) ||
+            key == Key.F11 ||
+            ((key == Key.T || key == Key.N || key == Key.W) && mods == (ModifierKeys.Control | ModifierKeys.Shift));
+
+        if (!isDirectBinding) return;
+
+        KmuxKeyPressed?.Invoke(key, mods);
+        e.Handled = true;
+    }
+
     public void Dispose()
     {
         KmuxKeyPressed      = null;
@@ -235,6 +279,8 @@ public class WebView2Bridge : IDisposable
         ShouldFocusOnReady  = null;
         _vm.OutputAvailable -= OnOutputAvailable;
         AppSettingsService.SettingsChanged -= OnSettingsChanged;
+        if (_controller is not null)
+            _controller.AcceleratorKeyPressed -= OnAcceleratorKeyPressed;
         if (_webView.CoreWebView2 is not null)
         {
             _webView.CoreWebView2.WebMessageReceived  -= OnWebMessageReceived;
