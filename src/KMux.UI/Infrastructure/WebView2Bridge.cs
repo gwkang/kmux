@@ -246,7 +246,10 @@ public class WebView2Bridge : IDisposable
             if (_controller is not null)
                 _controller.AcceleratorKeyPressed += OnAcceleratorKeyPressed;
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[WebView2Bridge] AcceleratorKey subscribe failed: {ex.Message}");
+        }
     }
 
     private void OnAcceleratorKeyPressed(object? sender, CoreWebView2AcceleratorKeyPressedEventArgs e)
@@ -300,6 +303,7 @@ public class WebView2Bridge : IDisposable
         "Minus"      => Key.OemMinus,
         "Backslash"  => Key.OemBackslash,
         "Comma"      => Key.OemComma,
+        "Slash"      => Key.OemQuestion,
         "ArrowUp"    => Key.Up,
         "ArrowDown"  => Key.Down,
         "ArrowLeft"  => Key.Left,

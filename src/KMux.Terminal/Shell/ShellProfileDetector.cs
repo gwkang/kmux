@@ -45,11 +45,7 @@ public static class ShellProfileDetector
 
         // Claude Code (if `claude` is on PATH)
         if (TryFind("claude.cmd", out _) || TryFind("claude.exe", out _))
-        {
-            var p = new ShellProfile { Name = "Claude Code", Executable = "cmd.exe", Arguments = "/k claude" };
-            p.EnvironmentVariables["PROMPT"] = CmdPromptWithOsc7;
-            profiles.Add(p);
-        }
+            profiles.Add(ShellProfile.ClaudeCode.Clone());
 
         return profiles.Count > 0 ? profiles : [ShellProfile.Cmd];
     }

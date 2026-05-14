@@ -55,12 +55,18 @@ public partial class PaneViewModel : ObservableObject, IDisposable
         }
     }
 
+    public ShellProfile Profile { get; }
+
     private readonly string _initialWorkingDir;
 
     public event EventHandler? ProcessExited;
+    public event EventHandler? FocusRequested;
+
+    public void RequestFocus() => FocusRequested?.Invoke(this, EventArgs.Empty);
 
     public PaneViewModel(Guid paneId, ShellProfile profile, MacroRecorder recorder)
     {
+        Profile            = profile;
         _initialWorkingDir = profile.WorkingDir;
         Terminal = new TerminalViewModel(paneId, profile, recorder);
         Terminal.PropertyChanged += OnTerminalPropertyChanged;

@@ -83,12 +83,33 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
 
     private void OnTabsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
-        if (e.OldItems is not null)
-            foreach (TabViewModel t in e.OldItems)
-                t.PropertyChanged -= OnAnyTabPropertyChanged;
-        if (e.NewItems is not null)
-            foreach (TabViewModel t in e.NewItems)
-                t.PropertyChanged += OnAnyTabPropertyChanged;
+        // Move fires with the same tab in both OldItems and NewItems — skip subscribe/unsubscribe.
+        if (e.Action != System.Collections.Specialized.NotifyCollectionChangedAction.Move)
+        {
+            if (e.OldItems is not null)
+                foreach (TabViewModel t in e.OldItems)
+                {
+                    t.PropertyChanged -= OnAnyTabPropertyChanged;
+                    t.CloseRequested  -= OnTabCloseRequested;
+                }
+            if (e.NewItems is not null)
+                foreach (TabViewModel t in e.NewItems)
+                {
+                    t.PropertyChanged += OnAnyTabPropertyChanged;
+                    t.CloseRequested  += OnTabCloseRequested;
+                }
+        }
+
+        // Move: reorder NonDashboardTabs in-place instead of rebuilding to avoid
+        // firing CollectionChanged Reset (which triggers full ItemsControl re-render).
+        // Tabs[0] is always the dashboard, so NonDashboardTabs index = Tabs index - 1.
+        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Move &&
+            e.OldItems?.Count == 1 && e.OldItems[0] is TabViewModel { IsDashboard: false })
+        {
+            NonDashboardTabs.Move(e.OldStartingIndex - 1, e.NewStartingIndex - 1);
+            return;
+        }
+
         SyncNonDashboardTabs();
     }
 
@@ -96,6 +117,12 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
     {
         if (e.PropertyName == nameof(TabViewModel.IsClaudeBusy))
             OnPropertyChanged(nameof(BusyTabCount));
+    }
+
+    private void OnTabCloseRequested(object? sender, EventArgs e)
+    {
+        if (sender is TabViewModel tab)
+            CloseTabCommand.Execute(tab);
     }
 
     private void SyncNonDashboardTabs()
@@ -262,13 +289,12 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public void ActivateTab(TabViewModel tab) => SetActiveTab(tab);
 
-    public void MoveTab(TabViewModel tab, int newIndex)
+    public void MoveTab(TabViewModel source, TabViewModel target)
     {
-        if (tab.IsDashboard) return;
-        var oldIndex = Tabs.IndexOf(tab);
-        if (oldIndex < 0) return;
-        newIndex = Math.Clamp(newIndex, 1, Tabs.Count - 1);
-        if (oldIndex == newIndex) return;
+        if (source.IsDashboard || target.IsDashboard) return;
+        var oldIndex = Tabs.IndexOf(source);
+        var newIndex = Tabs.IndexOf(target);
+        if (oldIndex < 0 || newIndex < 0 || oldIndex == newIndex) return;
         Tabs.Move(oldIndex, newIndex);
     }
 
@@ -423,23 +449,30 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
             case "tab.close":           CloseTabCommand.Execute(null);          break;
             case "tab.next":            NextTabCommand.Execute(null);           break;
             case "tab.prev":            PrevTabCommand.Execute(null);           break;
+            case "tab.rename":          if (ActiveTab is { IsDashboard: false } rt) rt.IsRenaming = true; break;
             case "split.horizontal":    SplitHorizontalCommand.Execute(null);   break;
             case "split.vertical":      SplitVerticalCommand.Execute(null);     break;
             case "pane.close":          CloseActivePaneCommand.Execute(null);   break;
             case "macro.record.toggle": _ = ToggleRecordingCommand.ExecuteAsync(null); break;
+            case "macro.manager":       MacroManagerRequested?.Invoke(this, EventArgs.Empty); break;
+            case "macro.play":          MacroManagerRequested?.Invoke(this, EventArgs.Empty); break;
             case "pane.focus.up":       MoveFocus(NavigationDirection.Up);      break;
             case "pane.focus.down":     MoveFocus(NavigationDirection.Down);    break;
             case "pane.focus.left":     MoveFocus(NavigationDirection.Left);    break;
             case "pane.focus.right":    MoveFocus(NavigationDirection.Right);   break;
-            case "macro.manager":       MacroManagerRequested?.Invoke(this, EventArgs.Empty); break;
+            case "session.save":        _ = SaveSessionCommand.ExecuteAsync(null); break;
             case "session.manager":     SessionManagerRequested?.Invoke(this, EventArgs.Empty); break;
             case "help.keybindings":    HelpRequested?.Invoke(this, EventArgs.Empty); break;
+            case "window.new":          WindowNewRequested?.Invoke(this, EventArgs.Empty); break;
+            case "window.fullscreen":   WindowFullscreenRequested?.Invoke(this, EventArgs.Empty); break;
         }
     }
 
     public event EventHandler? MacroManagerRequested;
     public event EventHandler? SessionManagerRequested;
     public event EventHandler? HelpRequested;
+    public event EventHandler? WindowNewRequested;
+    public event EventHandler? WindowFullscreenRequested;
 
     private void MoveFocus(NavigationDirection dir)
     {
@@ -478,6 +511,7 @@ public partial class TerminalWindowViewModel : ObservableObject, IDisposable
         foreach (var t in Tabs)
         {
             t.PropertyChanged -= OnAnyTabPropertyChanged;
+            t.CloseRequested  -= OnTabCloseRequested;
             t.Dispose();
         }
     }

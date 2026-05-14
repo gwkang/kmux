@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -33,6 +34,8 @@ public partial class TerminalViewModel : ObservableObject, IDisposable
 
     private readonly ShellProfile         _profile;
     private          ITerminalProcess?    _process;
+    // Not thread-safe — only the single pump thread per pane may access this.
+    private readonly Decoder _utf8Decoder = Encoding.UTF8.GetDecoder();
 
     private readonly System.Timers.Timer _idleTimer;
     private readonly System.Timers.Timer _claudeIdleTimer;
@@ -105,7 +108,15 @@ public partial class TerminalViewModel : ObservableObject, IDisposable
 
     private void OnOutputReceived(object? sender, KMux.Core.Events.TerminalDataEventArgs e)
     {
-        var text = Encoding.UTF8.GetString(e.Data);
+        var data = e.Data;
+        var chars = ArrayPool<char>.Shared.Rent(Encoding.UTF8.GetMaxCharCount(data.Length));
+        string text;
+        try
+        {
+            int charCount = _utf8Decoder.GetChars(data, 0, data.Length, chars, 0);
+            text = new string(chars, 0, charCount);
+        }
+        finally { ArrayPool<char>.Shared.Return(chars); }
 
         // Capture handler and buffer under lock, but invoke OUTSIDE the lock.
         // Holding the lock across the invocation caused starvation: the UI thread

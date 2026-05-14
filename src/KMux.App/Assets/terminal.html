@@ -86,7 +86,17 @@
     let _kmuxPrefixTimer   = null;
     term.attachCustomKeyEventHandler(ev => {
       if (ev.type !== 'keydown') return true;
-      if (ev.isComposing) return true;
+      if (ev.isComposing) {
+        // IME composition in progress — cancel any pending prefix so that the
+        // first non-composing key after composition (e.g. Space/Enter) is not
+        // mistakenly consumed as a chord.
+        if (_kmuxPrefixPending) {
+          _kmuxPrefixPending = false;
+          clearTimeout(_kmuxPrefixTimer);
+          _kmuxPrefixTimer = null;
+        }
+        return true;
+      }
 
       if (ev.ctrlKey && ev.shiftKey && !ev.altKey && ev.code === 'KeyC') {
         const sel = term.getSelection();

@@ -71,7 +71,7 @@ public partial class TerminalPane : UserControl, IDisposable
 
     private void OnWindowActivated(object? sender, EventArgs e)
     {
-        if (ViewModel?.IsFocused == true && _bridge is not null)
+        if (ViewModel?.IsFocused == true && _bridge is not null && WebView.CoreWebView2 is not null)
             _ = WebView.ExecuteScriptAsync("window.termFocus && window.termFocus()");
     }
 
@@ -80,14 +80,27 @@ public partial class TerminalPane : UserControl, IDisposable
         if (d is TerminalPane pane)
         {
             if (e.OldValue is PaneViewModel oldVm)
+            {
                 oldVm.PropertyChanged -= pane.OnVmPropertyChanged;
+                oldVm.FocusRequested  -= pane.OnFocusRequested;
+            }
             if (e.NewValue is PaneViewModel newVm)
             {
                 newVm.PropertyChanged += pane.OnVmPropertyChanged;
+                newVm.FocusRequested  += pane.OnFocusRequested;
                 pane._lastIsHighlighted = null; // force full visual init on next UpdateFocusBorder
                 pane.Dispatcher.InvokeAsync(pane.UpdateHeader);
                 pane.Dispatcher.InvokeAsync(pane.UpdateFocusBorder);
             }
+        }
+    }
+
+    private void OnFocusRequested(object? sender, EventArgs e)
+    {
+        if (Window.GetWindow(this) is { IsActive: true } && WebView.CoreWebView2 is not null)
+        {
+            if (!WebView.IsKeyboardFocusWithin) WebView.Focus();
+            _ = WebView.ExecuteScriptAsync("window.termFocus && window.termFocus()");
         }
     }
 
@@ -106,7 +119,7 @@ public partial class TerminalPane : UserControl, IDisposable
                     // or any other foreground app while KMux is in the background.
                     // When the user brings KMux back to the foreground, WPF restores
                     // Win32 focus to the last-focused HWND automatically.
-                    if (Window.GetWindow(this) is { IsActive: true })
+                    if (Window.GetWindow(this) is { IsActive: true } && WebView.CoreWebView2 is not null)
                     {
                         if (!WebView.IsKeyboardFocusWithin)
                             WebView.Focus();
@@ -222,32 +235,18 @@ public partial class TerminalPane : UserControl, IDisposable
 
     private void UpdateFocusBorder()
     {
-        // isHighlighted: keyboard focus only — Claude-ready state is communicated separately via FocusBorder green color
         var isHighlighted = ViewModel?.IsFocused == true;
 
-        if (ViewModel?.IsClaudeReady == true)
-        {
-            // Green border: Claude finished and waiting for input
-            FocusBorder.BorderBrush = ThemeHelper.GetBrush(ThemeResourceKeys.Green, Color.FromRgb(166, 227, 161));
-        }
-        else if (ViewModel?.IsFocused == true)
-        {
-            FocusBorder.BorderBrush = ThemeHelper.GetBrush(ThemeResourceKeys.Accent, Color.FromRgb(137, 180, 250));
-        }
-        else
-        {
-            // Transparent — let the accent border stand out by contrast, not compete with a dim fallback
-            FocusBorder.BorderBrush = Brushes.Transparent;
-        }
+        // Guard: only update visuals when focus state actually changes to avoid
+        // redundant resource lookups and restarting BeginAnimation mid-flight.
+        if (_lastIsHighlighted == isHighlighted) return;
+        _lastIsHighlighted = isHighlighted;
 
-        // Guard: only update header/overlay when highlighted state actually changes to avoid
-        // restarting BeginAnimation mid-flight (which causes a visible flicker on rapid state transitions)
-        if (_lastIsHighlighted != isHighlighted)
-        {
-            _lastIsHighlighted = isHighlighted;
-            UpdateHeaderStyle(isHighlighted);
-            UpdateInactiveOverlay(isHighlighted);
-        }
+        FocusBorder.BorderBrush = isHighlighted
+            ? ThemeHelper.GetBrush(ThemeResourceKeys.Accent, Color.FromRgb(137, 180, 250))
+            : Brushes.Transparent;
+        UpdateHeaderStyle(isHighlighted);
+        UpdateInactiveOverlay(isHighlighted);
     }
 
     private void UpdateHeaderStyle(bool isHighlighted)
@@ -345,6 +344,9 @@ public partial class TerminalPane : UserControl, IDisposable
         _disposed = true;
         _bridge?.Dispose();
         if (ViewModel is not null)
+        {
             ViewModel.PropertyChanged -= OnVmPropertyChanged;
+            ViewModel.FocusRequested  -= OnFocusRequested;
+        }
     }
 }

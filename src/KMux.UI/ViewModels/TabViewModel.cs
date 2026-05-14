@@ -107,10 +107,9 @@ public partial class TabViewModel : ObservableObject, IDisposable
     public void SplitPane(Guid paneId, SplitDirection dir)
     {
         var newId = _layoutTree.SplitPane(paneId, dir);
-        var workingDir = _panes.TryGetValue(paneId, out var srcPane)
-            ? srcPane.WorkingDirectory
-            : _defaultProfile.WorkingDir;
-        var profile = _defaultProfile.WithWorkingDir(workingDir);
+        var srcPane    = _panes.TryGetValue(paneId, out var sp) ? sp : null;
+        var workingDir = srcPane?.WorkingDirectory ?? _defaultProfile.WorkingDir;
+        var profile    = (srcPane?.Profile ?? _defaultProfile).WithWorkingDir(workingDir);
         profile.EnvironmentVariables["KMUX_PANE_ID"] = newId.ToString();
         var pane    = new PaneViewModel(newId, profile, _recorder);
         _panes[newId] = pane;
@@ -122,9 +121,11 @@ public partial class TabViewModel : ObservableObject, IDisposable
         _recorder.RecordNewPane(dir);
     }
 
+    public event EventHandler? CloseRequested;
+
     public void ClosePane(Guid paneId)
     {
-        if (_panes.Count <= 1) return;   // don't close last pane in tab
+        if (_panes.Count <= 1) { CloseRequested?.Invoke(this, EventArgs.Empty); return; }
 
         var pane = _panes[paneId];
         UnsubscribePane(pane);

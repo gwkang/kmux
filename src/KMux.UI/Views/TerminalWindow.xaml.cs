@@ -32,8 +32,12 @@ public partial class TerminalWindow : Window
         {
             if (DataContext is TerminalWindowViewModel vm)
             {
-                vm.WindowCloseRequested  += (_, _) => Close();
-                vm.HelpRequested         += (_, _) => OpenHelpWindow();
+                vm.WindowCloseRequested      += (_, _) => Close();
+                vm.HelpRequested             += (_, _) => OpenHelpWindow();
+                vm.MacroManagerRequested     += (_, _) => new MacroManagerWindow   { Owner = this }.ShowDialog();
+                vm.SessionManagerRequested   += (_, _) => new SessionManagerWindow { Owner = this }.ShowDialog();
+                vm.WindowNewRequested        += (_, _) => NewWindowButton_Click(this, new RoutedEventArgs());
+                vm.WindowFullscreenRequested += (_, _) => ToggleFullscreen();
             }
         };
     }
@@ -69,8 +73,8 @@ public partial class TerminalWindow : Window
         if (_draggedTab is null || e.LeftButton != MouseButtonState.Pressed) return;
         var pos  = e.GetPosition(null);
         var diff = pos - _tabDragStart;
-        if (Math.Abs(diff.X) <= SystemParameters.MinimumHorizontalDragDistance &&
-            Math.Abs(diff.Y) <= SystemParameters.MinimumVerticalDragDistance) return;
+        if (Math.Abs(diff.X) <= SystemParameters.MinimumHorizontalDragDistance * 4 &&
+            Math.Abs(diff.Y) <= SystemParameters.MinimumVerticalDragDistance * 4) return;
 
         var tab = _draggedTab;
         _draggedTab = null;
@@ -89,13 +93,12 @@ public partial class TerminalWindow : Window
 
     private void TabItem_Drop(object sender, DragEventArgs e)
     {
-        if (VM is null || !e.Data.GetDataPresent(typeof(TabViewModel))) return;
+        if (VM is null) return;
         if (e.Data.GetData(typeof(TabViewModel)) is not TabViewModel sourceTab) return;
         if (sender is not FrameworkElement { DataContext: TabViewModel { IsDashboard: false } targetTab }) return;
         if (sourceTab == targetTab) return;
 
-        var targetIndex = VM.Tabs.IndexOf(targetTab);
-        VM.MoveTab(sourceTab, targetIndex);
+        VM.MoveTab(sourceTab, targetTab);
         e.Handled = true;
     }
 
@@ -130,8 +133,8 @@ public partial class TerminalWindow : Window
     private void TabTitleEdit_KeyDown(object sender, KeyEventArgs e)
     {
         if (sender is not TextBox tb || tb.DataContext is not TabViewModel tab) return;
-        if (e.Key == Key.Enter)  { CommitTabRename(tab, tb); e.Handled = true; }
-        if (e.Key == Key.Escape) { tab.IsRenaming = false;    e.Handled = true; }
+        if (e.Key == Key.Enter)  { CommitTabRename(tab, tb); RestoreFocusToTerminal(); e.Handled = true; }
+        if (e.Key == Key.Escape) { tab.IsRenaming = false;   RestoreFocusToTerminal(); e.Handled = true; }
     }
 
     private static void CommitTabRename(TabViewModel tab, TextBox tb)
@@ -139,6 +142,12 @@ public partial class TerminalWindow : Window
         tab.IsRenaming = false;
         if (!string.IsNullOrWhiteSpace(tb.Text))
             tab.Title = tb.Text.Trim();
+    }
+
+    private void RestoreFocusToTerminal()
+    {
+        if (VM?.ActiveTab is not { } tab) return;
+        tab.GetPane(tab.ActivePaneId)?.RequestFocus();
     }
 
     private void CloseTabButton_Click(object sender, RoutedEventArgs e)
@@ -186,6 +195,20 @@ public partial class TerminalWindow : Window
     {
         var dlg = new KeybindingsHelpWindow { Owner = this };
         dlg.ShowDialog();
+    }
+
+    private void ToggleFullscreen()
+    {
+        if (WindowStyle == WindowStyle.None)
+        {
+            WindowStyle = WindowStyle.SingleBorderWindow;
+            WindowState = WindowState.Normal;
+        }
+        else
+        {
+            WindowStyle = WindowStyle.None;
+            WindowState = WindowState.Maximized;
+        }
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
