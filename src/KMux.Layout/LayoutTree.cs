@@ -45,27 +45,34 @@ public class LayoutTree
 
     public Guid? GetAdjacentPane(Guid paneId, NavigationDirection dir)
     {
-        // Build parent map then walk
-        var parents = new Dictionary<Guid, (SplitNode split, bool isFirst)>();
-        BuildParentMap(Root, null, false, parents);
+        // Build parent map for every node (leaves AND splits) using reference equality,
+        // since LayoutNode is a record and value equality would conflate distinct nodes.
+        var parents = new Dictionary<LayoutNode, (SplitNode Split, bool IsFirst)>(
+            ReferenceEqualityComparer.Instance);
+        BuildNodeParentMap(Root, null, false, parents);
 
-        if (!parents.TryGetValue(paneId, out var info)) return null;
+        var leaf = FindLeaf(Root, paneId);
+        if (leaf is null || !parents.TryGetValue(leaf, out var info)) return null;
 
-        bool wantFirst = dir is NavigationDirection.Up or NavigationDirection.Left;
-        bool horizontal = info.split.Direction == SplitDirection.Horizontal;
+        bool wantFirst = dir is NavigationDirection.Up   or NavigationDirection.Left;
+        bool needHoriz = dir is NavigationDirection.Up   or NavigationDirection.Down;
 
-        // Horizontal split = top/bottom; vertical split = left/right.
-        // L/R navigation needs a vertical (left/right) split; U/D needs a horizontal split.
-        bool relevant = dir is NavigationDirection.Left or NavigationDirection.Right
-            ? !horizontal
-            : horizontal;
-
-        if (!relevant) return null;
-
-        if (wantFirst == info.isFirst) return null;
-
-        var sibling = info.isFirst ? info.split.Second : info.split.First;
-        return FirstLeaf(sibling);
+        // Walk up the ancestor chain. The direct parent may not have the right split
+        // axis (e.g. navigating Left from a pane whose immediate parent is Horizontal).
+        // Keep climbing until we find an ancestor whose axis matches and where we are
+        // on the opposite side from where we want to go.
+        LayoutNode current = leaf;
+        while (true)
+        {
+            bool axisMatch = (info.Split.Direction == SplitDirection.Horizontal) == needHoriz;
+            if (axisMatch && wantFirst != info.IsFirst)
+            {
+                var sibling = info.IsFirst ? info.Split.Second : info.Split.First;
+                return FirstLeaf(sibling);
+            }
+            current = info.Split;
+            if (!parents.TryGetValue(current, out info)) return null;
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -134,17 +141,22 @@ public class LayoutTree
     private static Guid? FirstLeaf(LayoutNode node) =>
         node is LeafNode l ? l.PaneId : node is SplitNode s ? FirstLeaf(s.First) : null;
 
-    private static void BuildParentMap(LayoutNode node, SplitNode? parent, bool isFirst,
-        Dictionary<Guid, (SplitNode, bool)> map)
+    private static LeafNode? FindLeaf(LayoutNode node, Guid id) =>
+        node switch
+        {
+            LeafNode l when l.PaneId == id => l,
+            SplitNode s => FindLeaf(s.First, id) ?? FindLeaf(s.Second, id),
+            _ => null
+        };
+
+    private static void BuildNodeParentMap(LayoutNode node, SplitNode? parent, bool isFirst,
+        Dictionary<LayoutNode, (SplitNode, bool)> map)
     {
-        if (node is LeafNode l)
+        if (parent != null) map[node] = (parent, isFirst);
+        if (node is SplitNode s)
         {
-            if (parent != null) map[l.PaneId] = (parent, isFirst);
-        }
-        else if (node is SplitNode s)
-        {
-            BuildParentMap(s.First,  s, true,  map);
-            BuildParentMap(s.Second, s, false, map);
+            BuildNodeParentMap(s.First,  s, true,  map);
+            BuildNodeParentMap(s.Second, s, false, map);
         }
     }
 }
