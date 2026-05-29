@@ -123,13 +123,16 @@ public partial class PaneContainer : UserControl
         RootGrid.Children.Add(BuildElement(root));
 
         // After the WPF layout pass completes and WebView2 HWNDs are at their final
-        // sizes, re-fit all terminals. ResizeObserver inside xterm.js should handle
-        // most cases, but can be missed when panes are reparented during a rebuild.
+        // sizes, re-fit all terminals and restore keyboard focus to the active pane.
+        // Focus must be requested here because IsFocused is already true on the active
+        // pane before the tab switch, so no PropertyChanged fires to trigger the normal
+        // focus-restoration path in TerminalPane.OnVmPropertyChanged.
         Dispatcher.InvokeAsync(() =>
         {
             if (Tab is not null && _tabPaneCache.TryGetValue(Tab.Id, out var paneCache))
                 foreach (var pane in paneCache.Values)
                     pane.Refit();
+            Tab?.GetPane(Tab.ActivePaneId)?.RequestFocus();
         }, System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
