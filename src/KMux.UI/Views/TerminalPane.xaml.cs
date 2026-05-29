@@ -48,9 +48,13 @@ public partial class TerminalPane : UserControl, IDisposable
     }
 
     // Subscribe to Window.Activated when entering the visual tree, unsubscribe on exit.
-    // This ensures term.focus() is called even if "ready" fired while the window was inactive
+    // This ensures term.focus() is called if "ready" fired while the window was inactive
     // (e.g. multi-window workspace restore: earlier windows lose IsActive before "ready" fires).
+    // _needsFocusOnActivation is a one-shot flag: set when "ready" arrives while inactive,
+    // cleared on the next activation. Subsequent activations are ignored because WPF
+    // automatically restores Win32 focus to the last-focused HWND.
     private Window? _parentWindow;
+    private bool _needsFocusOnActivation;
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -71,8 +75,12 @@ public partial class TerminalPane : UserControl, IDisposable
 
     private void OnWindowActivated(object? sender, EventArgs e)
     {
-        if (ViewModel?.IsFocused == true && _bridge is not null && WebView.CoreWebView2 is not null)
+        if (!_needsFocusOnActivation) return;
+        if (_bridge is not null && WebView.CoreWebView2 is not null)
+        {
+            _needsFocusOnActivation = false;
             _ = WebView.ExecuteScriptAsync("window.termFocus && window.termFocus()");
+        }
     }
 
     private static void OnViewModelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -315,7 +323,14 @@ public partial class TerminalPane : UserControl, IDisposable
                     win.ShowPaneContextMenu(this, _bridge.GetSelectionAsync, _bridge.Paste);
             };
             _bridge.ShouldFocusOnReady = () =>
-                Window.GetWindow(this) is { IsActive: true } && ViewModel?.IsFocused == true;
+            {
+                var isActive  = Window.GetWindow(this) is { IsActive: true };
+                var isFocused = ViewModel?.IsFocused == true;
+                // If this pane should own focus but the window is currently inactive,
+                // arm the one-shot flag so OnWindowActivated can focus it later.
+                _needsFocusOnActivation = !isActive && isFocused;
+                return isActive && isFocused;
+            };
 
             await _bridge.InitializeAsync(AssetsPath);
 
